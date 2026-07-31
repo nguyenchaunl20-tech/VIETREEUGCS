@@ -5,6 +5,7 @@ import {
   Plus, Pencil, Save, Trash2, ChevronRight, ArrowLeft, Search, Download, Upload,
   Lock, LogOut, Eye, EyeOff, ShieldCheck, Layers, Building2, ClipboardList,
   FileSpreadsheet, UserCog, Settings as SettingsIcon, DollarSign, X, ImagePlus,
+  Mail, Send, CheckCircle2, XCircle, Loader2,
 } from "lucide-react";
 import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, STATUS } from "../components/ui";
 
@@ -348,6 +349,8 @@ function RegistrationsAdmin({ isOwner, session }) {
   const [rows, setRows] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(() => new Set());
+  const [showMailModal, setShowMailModal] = useState(false);
 
   useEffect(() => {
     api("/api/admin/campaigns").then((d) => {
@@ -362,6 +365,18 @@ function RegistrationsAdmin({ isOwner, session }) {
     api(`/api/admin/registrations?campaignId=${campaignId}`).then((d) => setRows(d.registrations));
   }, [campaignId]);
   useEffect(() => { loadRows(); }, [loadRows]);
+  useEffect(() => { setSelected(new Set()); }, [campaignId]);
+
+  const toggleSelect = (code) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code); else next.add(code);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.code))));
+  };
 
   const campaign = campaigns.find((c) => c.id === campaignId);
 
@@ -417,12 +432,27 @@ function RegistrationsAdmin({ isOwner, session }) {
           {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <div className="flex-1" />
+        {selected.size > 0 && (
+          <button onClick={() => setShowMailModal(true)} style={{ background: ACCENT }} className="text-sm px-3 py-2 rounded-lg text-white flex items-center gap-1.5">
+            <Mail size={14} /> Gửi mail cho {selected.size} bạn đã chọn
+          </button>
+        )}
         <button onClick={exportExcel} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
         <label className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF] cursor-pointer">
           <Upload size={14} /> Nhập Excel
           <input type="file" accept=".xlsx,.xls" onChange={importExcel} className="hidden" />
         </label>
       </div>
+
+      {showMailModal && (
+        <MailComposeModal
+          campaign={campaign}
+          codes={Array.from(selected)}
+          rows={rows}
+          onClose={() => setShowMailModal(false)}
+          onSent={() => { setSelected(new Set()); setShowMailModal(false); }}
+        />
+      )}
 
       {campaigns.length === 0 && <EmptyState text="Bạn chưa được cấp quyền xem campaign nào." />}
       {campaigns.length > 0 && rows.length === 0 && <EmptyState text="Chưa có đơn đăng ký nào cho campaign này." />}
@@ -432,6 +462,7 @@ function RegistrationsAdmin({ isOwner, session }) {
           <table className="w-full text-sm min-w-[1100px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
+                <th className="p-3 w-8"><input type="checkbox" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleSelectAll} /></th>
                 <th className="p-3">Mã ID</th><th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th>
                 <th className="p-3">Follower</th><th className="p-3">GMV 30d</th><th className="p-3">Reup</th>
                 <th className="p-3">Aff 5%</th><th className="p-3">Trạng thái</th>
@@ -441,6 +472,7 @@ function RegistrationsAdmin({ isOwner, session }) {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.code} className="border-b border-[#F1EFE8] last:border-0 align-top">
+                  <td className="p-3"><input type="checkbox" checked={selected.has(r.code)} onChange={() => toggleSelect(r.code)} /></td>
                   <td className="p-3 font-mono">{r.code}</td>
                   <EditableCell reg={r} field="tiktokId" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
                   <EditableCell reg={r} field="zaloPhone" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
@@ -493,6 +525,96 @@ function EditableCell({ reg, field, editingCell, setEditingCell, updateReg }) {
     <td className="p-3 cursor-text hover:bg-[#FAF9F6]" onClick={() => { setVal(reg[field] || ""); setEditingCell({ code: reg.code, field }); }}>
       {reg[field] || <span className="text-slate-300">—</span>}
     </td>
+  );
+}
+
+/* ---------------- MAIL COMPOSE MODAL ---------------- */
+
+const DEFAULT_MAIL_SUBJECT = "Thông báo kết quả campaign {{campaignName}}";
+const DEFAULT_MAIL_BODY =
+  "Chào {{tiktokId}},\n\nCảm ơn bạn đã đăng ký tham gia campaign {{campaignName}}.\n\n" +
+  "[Nội dung thông báo - admin/nhân viên điền vào đây]\n\nMã đơn của bạn: {{code}}\n\nTrân trọng.";
+
+function MailComposeModal({ campaign, codes, rows, onClose, onSent }) {
+  const [subject, setSubject] = useState(campaign?.emailSubject || DEFAULT_MAIL_SUBJECT);
+  const [mailBody, setMailBody] = useState(campaign?.emailBody || DEFAULT_MAIL_BODY);
+  const [sending, setSending] = useState(false);
+  const [results, setResults] = useState(null);
+  const [err, setErr] = useState("");
+
+  const recipients = rows.filter((r) => codes.includes(r.code));
+
+  const send = async () => {
+    if (!subject.trim() || !mailBody.trim()) { setErr("Nhập tiêu đề và nội dung mail."); return; }
+    setErr(""); setSending(true);
+    try {
+      const json = await api("/api/admin/send-mail", {
+        method: "POST",
+        body: JSON.stringify({ campaignId: campaign.id, codes, subject, mailBody }),
+      });
+      setResults(json.results);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const allOk = results && results.every((r) => r.ok);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium flex items-center gap-2"><Mail size={16} /> Soạn mail cho {recipients.length} bạn</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+
+        {!results ? (
+          <>
+            <div className="text-xs text-slate-400 mb-3">
+              Gửi tới: {recipients.map((r) => r.email).filter(Boolean).join(", ") || "—"}
+            </div>
+            <div className="space-y-3">
+              <div>
+                <FieldLabel>Tiêu đề</FieldLabel>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <FieldLabel>Nội dung</FieldLabel>
+                <textarea value={mailBody} onChange={(e) => setMailBody(e.target.value)} rows={8} className="w-full border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div className="text-xs text-slate-400 bg-[#F7F7F5] rounded-lg p-2.5 leading-relaxed">
+                Có thể dùng: <code>{"{{tiktokId}}"}</code>, <code>{"{{code}}"}</code>, <code>{"{{campaignName}}"}</code>, <code>{"{{followers}}"}</code>, <code>{"{{email}}"}</code> — hệ thống tự thay bằng thông tin riêng của từng người khi gửi. Nội dung này sẽ được lưu làm mẫu cho campaign, lần sau gửi sẽ tự điền lại.
+              </div>
+            </div>
+            {err && <div className="mt-3 text-sm text-red-500">{err}</div>}
+            <div className="flex gap-2 mt-5">
+              <button onClick={send} disabled={sending} style={{ background: ACCENT }} className="text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-60">
+                {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {sending ? "Đang gửi…" : `Gửi cho ${recipients.length} bạn`}
+              </button>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg border border-[#E7E3DA] text-sm">Huỷ</button>
+            </div>
+          </>
+        ) : (
+          <div>
+            <div className={`text-sm px-3 py-2 rounded-lg mb-3 ${allOk ? "bg-[#CCFBF1] text-[#0F766E]" : "bg-[#FEF3C7] text-[#B45309]"}`}>
+              Đã gửi {results.filter((r) => r.ok).length}/{results.length} mail thành công.
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {results.map((r) => (
+                <div key={r.code} className="flex items-center justify-between text-sm border border-[#F1EFE8] rounded-lg px-3 py-2">
+                  <span className="font-mono text-xs">{r.code}</span>
+                  <span className="text-slate-500 flex-1 px-2 truncate">{r.email}</span>
+                  {r.ok ? <CheckCircle2 size={15} className="text-[#0F766E]" /> : <span className="text-xs text-red-500">{r.error}</span>}
+                </div>
+              ))}
+            </div>
+            <button onClick={onSent} className="mt-4 px-4 py-2 rounded-lg bg-[#1C1B1F] text-white text-sm">Xong</button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
