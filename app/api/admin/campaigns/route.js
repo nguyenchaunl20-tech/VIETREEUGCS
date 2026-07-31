@@ -12,7 +12,7 @@ export async function GET() {
 
 export async function POST(req) {
   const ctx = await getAuthContext();
-  if (!ctx || !ctx.isOwner) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
+  if (!ctx || !(ctx.isOwner || ctx.staff?.canManageCampaigns)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json();
   if (!body.brandId) return NextResponse.json({ error: "Thiếu brandId" }, { status: 400 });
   const campaign = await prisma.campaign.create({
@@ -27,5 +27,14 @@ export async function POST(req) {
       status: "active",
     },
   });
+
+  // Nếu người tạo là nhân viên (không phải chủ tài khoản), tự động cấp quyền xem cho campaign vừa tạo
+  if (!ctx.isOwner) {
+    const ids = staffCampaignIds(ctx.staff);
+    if (!ids.includes(campaign.id)) {
+      await prisma.staff.update({ where: { id: ctx.staff.id }, data: { campaignIds: JSON.stringify([...ids, campaign.id]) } });
+    }
+  }
+
   return NextResponse.json({ campaign });
 }

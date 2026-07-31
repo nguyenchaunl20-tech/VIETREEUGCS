@@ -4,7 +4,7 @@ import { getAuthContext } from "../../../../../lib/authz";
 
 export async function PATCH(req, { params }) {
   const ctx = await getAuthContext();
-  if (!ctx || !ctx.isOwner) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
+  if (!ctx || !(ctx.isOwner || ctx.staff?.canManageCampaigns)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json();
   const data = {};
   if (body.label !== undefined) data.label = body.label;
@@ -15,7 +15,7 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   const ctx = await getAuthContext();
-  if (!ctx || !ctx.isOwner) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
+  if (!ctx || !(ctx.isOwner || ctx.staff?.canManageCampaigns)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   await prisma.refLink.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

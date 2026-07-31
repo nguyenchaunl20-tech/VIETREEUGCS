@@ -11,7 +11,7 @@ export async function GET() {
 
 export async function POST(req) {
   const ctx = await getAuthContext();
-  if (!ctx || !ctx.isOwner) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
+  if (!ctx || !(ctx.isOwner || ctx.staff?.canManageCampaigns)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json();
   const link = await prisma.refLink.create({ data: { label: body.label || "", url: body.url || "" } });
   return NextResponse.json({ link });

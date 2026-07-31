@@ -12,11 +12,19 @@ export async function PATCH(req, { params }) {
   if (body.name !== undefined) data.name = body.name;
   if (body.campaignIds !== undefined) data.campaignIds = JSON.stringify(body.campaignIds);
   if (body.canViewAggregate !== undefined) data.canViewAggregate = !!body.canViewAggregate;
+  if (body.canManageCampaigns !== undefined) data.canManageCampaigns = !!body.canManageCampaigns;
+  if (body.canManageBrands !== undefined) data.canManageBrands = !!body.canManageBrands;
   if (body.password) data.passwordHash = await hashPassword(body.password);
 
   const staff = await prisma.staff.update({ where: { id: params.id }, data });
   return NextResponse.json({
-    staff: { id: staff.id, username: staff.username, name: staff.name, campaignIds: JSON.parse(staff.campaignIds || "[]"), canViewAggregate: staff.canViewAggregate },
+    staff: {
+      id: staff.id, username: staff.username, name: staff.name,
+      campaignIds: JSON.parse(staff.campaignIds || "[]"),
+      canViewAggregate: staff.canViewAggregate,
+      canManageCampaigns: !!staff.canManageCampaigns,
+      canManageBrands: !!staff.canManageBrands,
+    },
   });
 }
 

@@ -17,6 +17,8 @@ export async function GET() {
       username: ctx.staff.username,
       campaignIds: staffCampaignIds(ctx.staff),
       canViewAggregate: ctx.staff.canViewAggregate,
+      canManageCampaigns: !!ctx.staff.canManageCampaigns,
+      canManageBrands: !!ctx.staff.canManageBrands,
     },
   });
 }

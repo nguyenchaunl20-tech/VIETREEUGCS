@@ -4,7 +4,13 @@ import { getAuthContext } from "../../../../lib/authz";
 import { hashPassword } from "../../../../lib/auth";
 
 function toPublic(s) {
-  return { id: s.id, username: s.username, name: s.name, campaignIds: JSON.parse(s.campaignIds || "[]"), canViewAggregate: s.canViewAggregate };
+  return {
+    id: s.id, username: s.username, name: s.name,
+    campaignIds: JSON.parse(s.campaignIds || "[]"),
+    canViewAggregate: s.canViewAggregate,
+    canManageCampaigns: !!s.canManageCampaigns,
+    canManageBrands: !!s.canManageBrands,
+  };
 }
 
 export async function GET() {
@@ -29,6 +35,8 @@ export async function POST(req) {
       name: body.name || "",
       campaignIds: JSON.stringify(body.campaignIds || []),
       canViewAggregate: !!body.canViewAggregate,
+      canManageCampaigns: !!body.canManageCampaigns,
+      canManageBrands: !!body.canManageBrands,
     },
   });
   return NextResponse.json({ staff: toPublic(staff) });

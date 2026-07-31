@@ -92,7 +92,8 @@ function AdminDashboard({ session, onLogout }) {
   const isOwner = session.type === "owner";
   const visibleTabs = ALL_TABS.filter((t) => {
     if (isOwner) return true;
-    if (t.key === "staff" || t.key === "settings" || t.key === "brands") return false;
+    if (t.key === "staff" || t.key === "settings") return false;
+    if (t.key === "brands") return !!session.canManageBrands;
     if (t.key === "aggregate") return !!session.canViewAggregate;
     return true;
   });
@@ -117,8 +118,8 @@ function AdminDashboard({ session, onLogout }) {
         ))}
       </div>
 
-      {tab === "campaigns" && <CampaignsAdmin isOwner={isOwner} />}
-      {tab === "brands" && isOwner && <BrandsAdmin />}
+      {tab === "campaigns" && <CampaignsAdmin isOwner={isOwner} canManageCampaigns={!!session.canManageCampaigns} />}
+      {tab === "brands" && (isOwner || session.canManageBrands) && <BrandsAdmin />}
       {tab === "registrations" && <RegistrationsAdmin isOwner={isOwner} session={session} />}
       {tab === "aggregate" && <AggregateAdmin />}
       {tab === "staff" && isOwner && <StaffAdmin />}
@@ -193,7 +194,8 @@ function BrandsAdmin() {
 
 /* ---------------- CAMPAIGNS ---------------- */
 
-function CampaignsAdmin({ isOwner }) {
+function CampaignsAdmin({ isOwner, canManageCampaigns }) {
+  const canEdit = isOwner || canManageCampaigns;
   const [brands, setBrands] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [refLinks, setRefLinks] = useState([]);
@@ -201,9 +203,9 @@ function CampaignsAdmin({ isOwner }) {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    Promise.all([api("/api/admin/brands"), api("/api/admin/campaigns"), isOwner ? api("/api/admin/reflinks") : Promise.resolve({ refLinks: [] })])
+    Promise.all([api("/api/admin/brands"), api("/api/admin/campaigns"), canEdit ? api("/api/admin/reflinks") : Promise.resolve({ refLinks: [] })])
       .then(([b, c, r]) => { setBrands(b.brands); setCampaigns(c.campaigns); setRefLinks(r.refLinks); setLoading(false); });
-  }, [isOwner]);
+  }, [canEdit]);
   useEffect(() => { load(); }, [load]);
 
   const addCampaign = async () => {
@@ -240,7 +242,7 @@ function CampaignsAdmin({ isOwner }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-medium">Campaigns</h2>
-        {isOwner && <button onClick={addCampaign} style={{ background: ACCENT }} className="text-white text-sm px-3.5 py-2 rounded-lg flex items-center gap-1.5"><Plus size={14} /> Thêm campaign</button>}
+        {canEdit && <button onClick={addCampaign} style={{ background: ACCENT }} className="text-white text-sm px-3.5 py-2 rounded-lg flex items-center gap-1.5"><Plus size={14} /> Thêm campaign</button>}
       </div>
 
       <div className="space-y-3">
@@ -263,20 +265,20 @@ function CampaignsAdmin({ isOwner }) {
               {open && (
                 <div className="px-4 pb-4 space-y-3 border-t border-[#EFEBE2] pt-4">
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <MiniField label="Tên campaign" value={c.name} onChange={(v) => update(c.id, { name: v })} disabled={!isOwner} />
+                    <MiniField label="Tên campaign" value={c.name} onChange={(v) => update(c.id, { name: v })} disabled={!canEdit} />
                     <div>
                       <FieldLabel>Brand</FieldLabel>
-                      <select value={c.brandId} disabled={!isOwner} onChange={(e) => update(c.id, { brandId: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-sm bg-white">
+                      <select value={c.brandId} disabled={!canEdit} onChange={(e) => update(c.id, { brandId: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-sm bg-white">
                         {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     </div>
                   </div>
-                  <MiniField label="Sản phẩm" value={c.product} onChange={(v) => update(c.id, { product: v })} textarea disabled={!isOwner} />
-                  <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={c.cost} onChange={(v) => update(c.id, { cost: v })} disabled={!isOwner} />
-                  <MiniField label="Yêu cầu về UGC" value={c.requirements} onChange={(v) => update(c.id, { requirements: v })} textarea disabled={!isOwner} />
-                  <MiniField label="Brief" value={c.brief} onChange={(v) => update(c.id, { brief: v })} textarea disabled={!isOwner} />
+                  <MiniField label="Sản phẩm" value={c.product} onChange={(v) => update(c.id, { product: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={c.cost} onChange={(v) => update(c.id, { cost: v })} disabled={!canEdit} />
+                  <MiniField label="Yêu cầu về UGC" value={c.requirements} onChange={(v) => update(c.id, { requirements: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Brief" value={c.brief} onChange={(v) => update(c.id, { brief: v })} textarea disabled={!canEdit} />
 
-                  {isOwner && (
+                  {canEdit && (
                     <div>
                       <FieldLabel>Link tham khảo (hiển thị cho UGC xem)</FieldLabel>
                       <SampleLinksEditor links={sampleLinks || []} onChange={(v) => update(c.id, { sampleLinks: v })} />
@@ -284,7 +286,7 @@ function CampaignsAdmin({ isOwner }) {
                   )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#EFEBE2] flex-wrap gap-2">
-                    {isOwner && (
+                    {canEdit && (
                       <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={c.status === "done"} onChange={(e) => update(c.id, { status: e.target.checked ? "done" : "active" })} />
                         Đánh dấu đã hoàn thành (đóng đăng ký)
@@ -292,7 +294,7 @@ function CampaignsAdmin({ isOwner }) {
                     )}
                     <div className="flex items-center gap-3">
                       <button onClick={() => navigator.clipboard?.writeText(window.location.origin + `/form/${c.id}`)} className="text-xs text-[#5B4CFF] flex items-center gap-1">Copy link đăng ký</button>
-                      {isOwner && <button onClick={() => remove(c.id)} className="text-xs text-red-500 flex items-center gap-1"><Trash2 size={12} />Xoá</button>}
+                      {canEdit && <button onClick={() => remove(c.id)} className="text-xs text-red-500 flex items-center gap-1"><Trash2 size={12} />Xoá</button>}
                     </div>
                   </div>
                 </div>
@@ -303,7 +305,7 @@ function CampaignsAdmin({ isOwner }) {
       </div>
       {campaigns.length === 0 && <EmptyState text="Chưa có campaign nào." />}
 
-      {isOwner && (
+      {canEdit && (
         <div className="mt-10 pt-6 border-t border-[#E7E3DA]">
           <h3 className="font-medium mb-3 text-sm">Link mẫu chung (hiển thị ở trang chủ)</h3>
           <div className="space-y-2">
@@ -635,7 +637,11 @@ function StaffAdmin() {
                     })}
                   </div>
                 </div>
-                <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={s.canViewAggregate} onChange={(e) => update(s.id, { canViewAggregate: e.target.checked })} /> Xem bảng tổng hợp</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={s.canViewAggregate} onChange={(e) => update(s.id, { canViewAggregate: e.target.checked })} /> Xem bảng tổng hợp</label>
+                  <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={!!s.canManageCampaigns} onChange={(e) => update(s.id, { canManageCampaigns: e.target.checked })} /> Được thêm/sửa/xoá campaign (trong các campaign được xem ở trên)</label>
+                  <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={!!s.canManageBrands} onChange={(e) => update(s.id, { canManageBrands: e.target.checked })} /> Được thêm/sửa/xoá brand</label>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={() => setEditing(null)} className="text-sm px-3 py-1.5 rounded-lg bg-[#1C1B1F] text-white flex items-center gap-1"><Save size={13} />Xong</button>
                   <button onClick={() => remove(s.id)} className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-500 flex items-center gap-1"><Trash2 size={13} />Xoá</button>
