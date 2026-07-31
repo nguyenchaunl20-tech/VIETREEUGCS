@@ -1,0 +1,92 @@
+"use client";
+import React from "react";
+
+export const ACCENT = "#5B4CFF";
+export const PAPER = "#FAF9F6";
+
+export const STATUS = {
+  pending: { label: "Chờ duyệt", color: "#94A3B8", bg: "#F1F5F9" },
+  suitable: { label: "Phù hợp (bước 1)", color: "#B45309", bg: "#FEF3C7" },
+  selected: { label: "Đã chọn", color: "#0F766E", bg: "#CCFBF1" },
+};
+
+export function FieldLabel({ children }) {
+  return <div className="text-sm font-medium mb-1.5">{children}</div>;
+}
+
+export function Field({ label, required, value, onChange, placeholder, textarea }) {
+  return (
+    <div>
+      <FieldLabel>{label} {required && <span className="text-red-400">*</span>}</FieldLabel>
+      {textarea ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3}
+          className="w-full border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white" />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white" />
+      )}
+    </div>
+  );
+}
+
+export function ChoiceField({ label, value, onChange, options }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex gap-2 flex-wrap">
+        {options.map((opt) => (
+          <button type="button" key={opt} onClick={() => onChange(opt)}
+            className={`text-sm px-3 py-1.5 rounded-full border transition ${value === opt ? "bg-[#5B4CFF] text-white border-[#5B4CFF]" : "border-[#E7E3DA] hover:border-[#5B4CFF]"}`}>
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function StatusPill({ status }) {
+  const s = STATUS[status] || STATUS.pending;
+  return (
+    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: s.bg, color: s.color }}>
+      {s.label}
+    </span>
+  );
+}
+
+export function EmptyState({ text }) {
+  return (
+    <div className="border border-dashed border-[#E7E3DA] rounded-xl py-14 text-center text-slate-400 text-sm">
+      {text}
+    </div>
+  );
+}
+
+export function DetailRow({ label, children }) {
+  return (
+    <div>
+      <div className="text-[11px] tracking-widest uppercase text-slate-400 mb-1">{label}</div>
+      <div className="text-[15px] text-[#1C1B1F] whitespace-pre-wrap leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
+export function SampleLinksEditor({ links, onChange }) {
+  const add = () => onChange([...links, { id: Math.random().toString(36).slice(2, 8), label: "", url: "" }]);
+  const update = (id, patch) => onChange(links.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const remove = (id) => onChange(links.filter((l) => l.id !== id));
+  return (
+    <div className="space-y-2">
+      {links.map((l) => (
+        <div key={l.id} className="flex gap-2">
+          <input value={l.label} onChange={(e) => update(l.id, { label: e.target.value })} placeholder="Tên hiển thị"
+            className="w-32 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <input value={l.url} onChange={(e) => update(l.id, { url: e.target.value })} placeholder="https://..."
+            className="flex-1 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <button type="button" onClick={() => remove(l.id)} className="text-slate-400 hover:text-red-500">✕</button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className="text-sm text-[#5B4CFF]">+ Thêm link</button>
+    </div>
+  );
+}
