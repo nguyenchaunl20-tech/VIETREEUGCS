@@ -57,6 +57,22 @@ Ai vào bằng máy tính hay điện thoại cũng thấy chung 1 dữ liệu, 
 
 Vì không dùng terminal, cách đơn giản nhất là: sửa trực tiếp file trên GitHub (bấm vào file → bấm bút chì để sửa → Commit changes), Vercel sẽ **tự động deploy lại** mỗi khi bạn Commit. Việc lớn hơn thì cứ nhắn lại đây, mình sửa code rồi gửi bạn file mới để bạn thay vào GitHub.
 
+## Gửi email cho UGC (tính năng mới)
+
+Trong tab **Đơn đăng ký**, tick chọn 1 hoặc nhiều bạn → bấm **"Gửi mail cho N bạn đã chọn"** → soạn tiêu đề + nội dung (dùng `{{tiktokId}}`, `{{code}}`, `{{campaignName}}`, `{{followers}}`, `{{email}}` để tự động điền riêng cho từng người) → Gửi. Nội dung soạn sẽ tự lưu làm mẫu cho campaign đó, lần sau mở lại sẽ tự điền sẵn để chỉnh sửa tiếp. Admin và nhân viên được phân quyền xem campaign nào thì gửi được mail cho campaign đó.
+
+Để tính năng này hoạt động, cần cấu hình **1 Gmail công ty** để làm địa chỉ gửi đi:
+
+1. Vào tài khoản Gmail muốn dùng để gửi → bật **Xác minh 2 bước** (2-Step Verification) tại `myaccount.google.com/security` (bắt buộc phải bật cái này trước).
+2. Vào `myaccount.google.com/apppasswords` → tạo mới 1 "Mật khẩu ứng dụng" (App Password), đặt tên bất kỳ (VD: "UGC App") → Google cho ra 1 chuỗi 16 ký tự.
+3. Vào Vercel → project → **Settings → Environment Variables**, thêm:
+   - `MAIL_USER` = địa chỉ Gmail đó (VD: `congty@gmail.com`)
+   - `MAIL_PASSWORD` = chuỗi 16 ký tự vừa tạo ở bước 2 (không phải mật khẩu Gmail thường)
+   - `MAIL_FROM_NAME` = tên hiển thị khi UGC nhận mail (VD: `Công ty ABC`)
+4. Bấm **Redeploy** để áp dụng biến môi trường mới.
+
+Gmail miễn phí giới hạn khoảng 500 mail/ngày — đủ dùng cho tuyển UGC theo campaign. Nếu sau này cần gửi số lượng lớn hơn, có thể đổi sang dịch vụ email chuyên dụng (Resend, SendGrid...) bằng cách khai báo thêm `MAIL_HOST`/`MAIL_PORT`/`MAIL_SECURE` (xem chú thích trong `.env.example`), không cần sửa code.
+
 ## Gắn domain riêng
 
 Trong project Vercel → **Settings → Domains** → nhập domain đã mua → làm theo hướng dẫn DNS Vercel đưa ra.
