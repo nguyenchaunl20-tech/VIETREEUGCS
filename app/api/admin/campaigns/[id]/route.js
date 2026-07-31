@@ -13,7 +13,7 @@ export async function PATCH(req, { params }) {
   if (!canManage(ctx, params.id)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json();
   const data = {};
-  ["name", "product", "cost", "requirements", "brief", "brandId", "status"].forEach((k) => {
+  ["name", "product", "cost", "requirements", "brief", "brandId", "status", "imageUrl", "zaloGroupLink", "trackingLink"].forEach((k) => {
     if (body[k] !== undefined) data[k] = body[k];
   });
   if (body.sampleLinks !== undefined) data.sampleLinks = JSON.stringify(body.sampleLinks);

@@ -38,6 +38,10 @@ export default function CampaignDetailPage({ params }) {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         <a href="/" className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1 mb-6"><ArrowLeft size={14} /> Tất cả campaign</a>
 
+        {campaign.imageUrl && (
+          <img src={campaign.imageUrl} alt={campaign.name} className="w-full h-56 object-cover rounded-xl mb-6 border border-[#E7E3DA]" />
+        )}
+
         <div className="flex items-center gap-2 mb-2">
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: brand?.color || "#999" }} />
           <span className="text-sm text-slate-500">{brand?.name}</span>

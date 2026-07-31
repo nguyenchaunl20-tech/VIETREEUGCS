@@ -24,6 +24,9 @@ export async function POST(req) {
       requirements: body.requirements || "",
       brief: body.brief || "",
       sampleLinks: JSON.stringify(body.sampleLinks || []),
+      imageUrl: body.imageUrl || "",
+      zaloGroupLink: body.zaloGroupLink || "",
+      trackingLink: body.trackingLink || "",
       status: "active",
     },
   });

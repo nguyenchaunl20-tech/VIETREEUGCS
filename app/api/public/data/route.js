@@ -24,6 +24,7 @@ export async function GET() {
     requirements: c.requirements,
     brief: c.brief,
     sampleLinks: c.sampleLinks,
+    imageUrl: c.imageUrl || "",
     status: c.status,
   }));
 

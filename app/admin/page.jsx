@@ -277,6 +277,9 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                   <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={c.cost} onChange={(v) => update(c.id, { cost: v })} disabled={!canEdit} />
                   <MiniField label="Yêu cầu về UGC" value={c.requirements} onChange={(v) => update(c.id, { requirements: v })} textarea disabled={!canEdit} />
                   <MiniField label="Brief" value={c.brief} onChange={(v) => update(c.id, { brief: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Ảnh đại diện campaign (dán link ảnh - dùng để trang trí, hiển thị ở trang chủ và trang chi tiết)" value={c.imageUrl || ""} onChange={(v) => update(c.id, { imageUrl: v })} disabled={!canEdit} />
+                  <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.zaloGroupLink || ""} onChange={(v) => update(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
+                  <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.trackingLink || ""} onChange={(v) => update(c.id, { trackingLink: v })} disabled={!canEdit} />
 
                   {canEdit && (
                     <div>

@@ -40,7 +40,6 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: brand.color }} />
                   <h2 className="font-semibold text-lg">{brand.name}</h2>
-                  {brand.isOwn && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EEEBFF] text-[#5B4CFF]">Nội bộ</span>}
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {brandActive.map((c) => <CampaignCard key={c.id} campaign={c} brand={brand} />)}
@@ -80,8 +79,12 @@ function CampaignCard({ campaign, brand, disabled }) {
   return (
     <a
       href={disabled ? undefined : `/campaign/${campaign.id}`}
-      className={`text-left bg-white border border-[#E7E3DA] rounded-xl p-4 block transition ${disabled ? "cursor-default" : "hover:shadow-md hover:-translate-y-0.5"}`}
+      className={`text-left bg-white border border-[#E7E3DA] rounded-xl overflow-hidden block transition ${disabled ? "cursor-default" : "hover:shadow-md hover:-translate-y-0.5"}`}
     >
+      {campaign.imageUrl && (
+        <img src={campaign.imageUrl} alt={campaign.name} className="w-full h-36 object-cover" />
+      )}
+      <div className="p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: (brand?.color || "#ccc") + "22", color: brand?.color || "#666" }}>
           {brand?.name || "—"}
@@ -96,6 +99,7 @@ function CampaignCard({ campaign, brand, disabled }) {
         <div className="mt-2 text-sm text-slate-400">Không trả cast</div>
       )}
       {!disabled && <div className="mt-3 text-sm text-[#5B4CFF] flex items-center gap-1">Xem chi tiết <ChevronRight size={14} /></div>}
+      </div>
     </a>
   );
 }

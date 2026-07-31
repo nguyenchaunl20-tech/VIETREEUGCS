@@ -50,6 +50,17 @@ export default function LookupPage() {
                 {result.paid == null && <span className="text-slate-400">Chưa cập nhật</span>}
               </div>
             )}
+            {result.status === "selected" && (result.zaloGroupLink || result.trackingLink) && (
+              <div className="pt-3 border-t border-[#EFEBE2] space-y-2">
+                <div className="text-xs tracking-widest uppercase text-slate-400">Bạn đã được chọn — thông tin dành cho bạn</div>
+                {result.zaloGroupLink && (
+                  <a href={result.zaloGroupLink} target="_blank" rel="noreferrer" className="block text-sm text-[#5B4CFF] underline">Link nhóm Zalo campaign</a>
+                )}
+                {result.trackingLink && (
+                  <a href={result.trackingLink} target="_blank" rel="noreferrer" className="block text-sm text-[#5B4CFF] underline">Link theo dõi đơn hàng</a>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

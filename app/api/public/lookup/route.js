@@ -16,6 +16,7 @@ export async function GET(req) {
   if (!reg) return NextResponse.json({ found: false });
 
   const showPaid = reg.campaign.status === "done" && !!reg.campaign.cost;
+  const selected = reg.status === "selected";
 
   return NextResponse.json({
     found: true,
@@ -24,5 +25,7 @@ export async function GET(req) {
     tiktokId: reg.tiktokId,
     campaignName: reg.campaign.name,
     paid: showPaid ? reg.paid : undefined,
+    zaloGroupLink: selected ? reg.campaign.zaloGroupLink || "" : undefined,
+    trackingLink: selected ? reg.campaign.trackingLink || "" : undefined,
   });
 }

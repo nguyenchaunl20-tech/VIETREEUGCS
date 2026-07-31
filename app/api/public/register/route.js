@@ -19,15 +19,16 @@ export async function POST(req) {
   if (campaign.status === "done") {
     return NextResponse.json({ ok: false, error: "Campaign này đã đóng đăng ký." }, { status: 400 });
   }
+  const brand = await prisma.brand.findUnique({ where: { id: campaign.brandId } });
 
   const now = new Date();
-  let code = generateCode(zaloPhone, now);
+  let code = generateCode(brand?.name, zaloPhone, now);
   let finalCode = code;
   let suffix = 0;
   // đảm bảo mã không trùng
   while (await prisma.registration.findUnique({ where: { code: finalCode } })) {
     suffix += 1;
-    finalCode = `${code}${suffix}`;
+    finalCode = `${code}-${suffix}`;
   }
 
   const record = await prisma.registration.create({

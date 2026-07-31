@@ -80,10 +80,11 @@ export default function RegistrationFormPage({ params }) {
           </div>
           <h2 className="text-xl font-medium mb-2">Đã ghi nhận đăng ký!</h2>
           <p className="text-slate-500 text-sm mb-5">Lưu lại mã dưới đây để tra cứu tình trạng đơn của bạn bất cứ lúc nào.</p>
-          <div className="bg-white border border-[#E7E3DA] rounded-xl p-5 flex items-center justify-between mb-6">
+          <div className="bg-white border border-[#E7E3DA] rounded-xl p-5 flex items-center justify-between mb-3">
             <span className="text-2xl font-mono tracking-wider font-semibold">{submittedCode}</span>
             <button onClick={() => navigator.clipboard?.writeText(submittedCode)} className="text-sm text-[#5B4CFF] flex items-center gap-1"><Copy size={14} /> Sao chép</button>
           </div>
+          <p className="text-xs text-slate-400 mb-6">Mã gồm: Tên brand + 2 số đầu SĐT + 3 số cuối SĐT + Tháng và năm đăng ký — bạn có thể tự nhớ lại mã này bất cứ lúc nào.</p>
           <div className="flex gap-3">
             <a href="/lookup" className="px-4 py-2.5 rounded-full bg-[#1C1B1F] text-white text-sm">Tra cứu ngay</a>
             <a href="/" className="px-4 py-2.5 rounded-full border border-[#E7E3DA] text-sm">Về trang chủ</a>
