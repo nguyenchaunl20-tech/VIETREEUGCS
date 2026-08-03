@@ -450,6 +450,10 @@ function RegistrationsAdmin({ isOwner, session }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
   const [showMailModal, setShowMailModal] = useState(false);
+  const [filters, setFilters] = useState({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
+  const setFilter = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
+  const clearFilters = () => setFilters({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
+  const hasActiveFilters = Object.values(filters).some((v) => v);
 
   useEffect(() => {
     api("/api/admin/campaigns").then((d) => {
@@ -474,10 +478,24 @@ function RegistrationsAdmin({ isOwner, session }) {
     });
   };
   const toggleSelectAll = () => {
-    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.code))));
+    setSelected((prev) => (prev.size === filteredRows.length ? new Set() : new Set(filteredRows.map((r) => r.code))));
   };
 
   const campaign = campaigns.find((c) => c.id === campaignId);
+
+  const filteredRows = rows.filter((r) => {
+    if (filters.code && !r.code?.toLowerCase().includes(filters.code.toLowerCase())) return false;
+    if (filters.tiktokId && !r.tiktokId?.toLowerCase().includes(filters.tiktokId.toLowerCase())) return false;
+    if (filters.zaloPhone && !r.zaloPhone?.toLowerCase().includes(filters.zaloPhone.toLowerCase())) return false;
+    if (filters.followers && !String(r.followers || "").toLowerCase().includes(filters.followers.toLowerCase())) return false;
+    if (filters.selectedProduct && !r.selectedProduct?.toLowerCase().includes(filters.selectedProduct.toLowerCase())) return false;
+    if (filters.status && r.status !== filters.status) return false;
+    if (filters.mail === "sent" && !r.mailSentAt) return false;
+    if (filters.mail === "unsent" && r.mailSentAt) return false;
+    if (filters.paid === "paid" && r.paid !== true) return false;
+    if (filters.paid === "unpaid" && r.paid !== false) return false;
+    return true;
+  });
 
   const updateReg = async (code, patch) => {
     setRows((list) => list.map((r) => (r.code === code ? { ...r, ...patch } : r)));
@@ -492,7 +510,7 @@ function RegistrationsAdmin({ isOwner, session }) {
   };
 
   const exportExcel = () => {
-    const data = rows.map((r) => ({
+    const data = filteredRows.map((r) => ({
       "Mã ID": r.code, "Trạng thái": STATUS[r.status]?.label, "ID TikTok": r.tiktokId, "Link TikTok": r.tiktokLink,
       "SĐT Zalo": r.zaloPhone, "Địa chỉ": r.address, "Email": r.email, "Ảnh GMV": r.gmvNote, "Số liệu GMV": r.gmvNumber,
       "Follower": r.followers, "Sản phẩm chọn": r.selectedProduct, "Cho reup": r.allowReup, "Aff 5%": r.aff5, "Video ≥30 ngày": r.video30days, "Nội dung kênh": r.contentDesc,
@@ -548,6 +566,7 @@ function RegistrationsAdmin({ isOwner, session }) {
           <Upload size={14} /> Nhập Excel
           <input type="file" accept=".xlsx,.xls" onChange={importExcel} className="hidden" />
         </label>
+        {hasActiveFilters && <button onClick={clearFilters} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] text-slate-500 hover:border-red-300 hover:text-red-500 flex items-center gap-1.5"><X size={14} /> Xoá bộ lọc</button>}
       </div>
 
       {showMailModal && (
@@ -562,22 +581,58 @@ function RegistrationsAdmin({ isOwner, session }) {
 
       {campaigns.length === 0 && <EmptyState text="Bạn chưa được cấp quyền xem campaign nào." />}
       {campaigns.length > 0 && rows.length === 0 && <EmptyState text="Chưa có đơn đăng ký nào cho campaign này." />}
+      {rows.length > 0 && filteredRows.length === 0 && <EmptyState text="Không có đơn nào khớp với bộ lọc." />}
 
-      {rows.length > 0 && (
+      {filteredRows.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
           <table className="w-full text-sm min-w-[1500px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
-                <th className="p-3 w-8"><input type="checkbox" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleSelectAll} /></th>
+                <th className="p-3 w-8"><input type="checkbox" checked={filteredRows.length > 0 && selected.size === filteredRows.length} onChange={toggleSelectAll} /></th>
                 <th className="p-3">Mã ID</th><th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th>
                 <th className="p-3">Follower</th><th className="p-3">GMV 30d</th><th className="p-3">Reup</th>
                 <th className="p-3">Aff 5%</th><th className="p-3">Sản phẩm chọn</th><th className="p-3">Ngày đăng ký</th><th className="p-3">Mail</th><th className="p-3">Trạng thái</th>
                 {campaign?.status === "done" && campaign?.cost && <th className="p-3">Thanh toán</th>}
                 <th className="p-3 w-8"></th>
               </tr>
+              <tr className="border-b border-[#E7E3DA] bg-[#FAF9F6]">
+                <th className="p-1.5"></th>
+                <th className="p-1.5"><input value={filters.code} onChange={(e) => setFilter("code", e.target.value)} placeholder="Lọc mã ID" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"><input value={filters.tiktokId} onChange={(e) => setFilter("tiktokId", e.target.value)} placeholder="Lọc TikTok" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"><input value={filters.zaloPhone} onChange={(e) => setFilter("zaloPhone", e.target.value)} placeholder="Lọc SĐT" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"><input value={filters.followers} onChange={(e) => setFilter("followers", e.target.value)} placeholder="Lọc follower" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"></th>
+                <th className="p-1.5"></th>
+                <th className="p-1.5"></th>
+                <th className="p-1.5"><input value={filters.selectedProduct} onChange={(e) => setFilter("selectedProduct", e.target.value)} placeholder="Lọc sản phẩm" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"></th>
+                <th className="p-1.5">
+                  <select value={filters.mail} onChange={(e) => setFilter("mail", e.target.value)} className="w-full border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                    <option value="">Tất cả</option>
+                    <option value="sent">Đã gửi</option>
+                    <option value="unsent">Chưa gửi</option>
+                  </select>
+                </th>
+                <th className="p-1.5">
+                  <select value={filters.status} onChange={(e) => setFilter("status", e.target.value)} className="w-full border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                    <option value="">Tất cả</option>
+                    {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </th>
+                {campaign?.status === "done" && campaign?.cost && (
+                  <th className="p-1.5">
+                    <select value={filters.paid} onChange={(e) => setFilter("paid", e.target.value)} className="w-full border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                      <option value="">Tất cả</option>
+                      <option value="paid">Đã chi</option>
+                      <option value="unpaid">Chưa chi</option>
+                    </select>
+                  </th>
+                )}
+                <th className="p-1.5"></th>
+              </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.code} className="border-b border-[#F1EFE8] last:border-0 align-top">
                   <td className="p-3"><input type="checkbox" checked={selected.has(r.code)} onChange={() => toggleSelect(r.code)} /></td>
                   <td className="p-3 font-mono">{r.code}</td>
@@ -742,8 +797,11 @@ function MailComposeModal({ campaign, codes, rows, onClose, onSent }) {
 function AggregateAdmin() {
   const [rows, setRows] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
-  const [q, setQ] = useState("");
   const [campaignFilter, setCampaignFilter] = useState("");
+  const [filters, setFilters] = useState({ tiktokId: "", zaloPhone: "", followers: "", status: "", mail: "" });
+  const setFilter = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
+  const clearFilters = () => { setFilters({ tiktokId: "", zaloPhone: "", followers: "", status: "", mail: "" }); setCampaignFilter(""); };
+  const hasActiveFilters = campaignFilter || Object.values(filters).some((v) => v);
   const [editingCell, setEditingCell] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -766,7 +824,12 @@ function AggregateAdmin() {
   }, [rows]);
 
   const filtered = merged.filter((m) => {
-    if (q && !m.tiktokId?.toLowerCase().includes(q.toLowerCase()) && !m.zaloPhone?.includes(q)) return false;
+    if (filters.tiktokId && !m.tiktokId?.toLowerCase().includes(filters.tiktokId.toLowerCase())) return false;
+    if (filters.zaloPhone && !m.zaloPhone?.toLowerCase().includes(filters.zaloPhone.toLowerCase())) return false;
+    if (filters.followers && !String(m.followers || "").toLowerCase().includes(filters.followers.toLowerCase())) return false;
+    if (filters.status && !m.campaignsList.some((c) => c.status === filters.status)) return false;
+    if (filters.mail === "sent" && !m.campaignsList.some((c) => c.mailSentAt)) return false;
+    if (filters.mail === "unsent" && m.campaignsList.some((c) => c.mailSentAt)) return false;
     if (campaignFilter && !m.campaignsList.some((c) => c.id === campaignFilter)) return false;
     return true;
   });
@@ -813,19 +876,17 @@ function AggregateAdmin() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo TikTok / SĐT" className="w-full pl-8 pr-3 py-2 border border-[#E7E3DA] rounded-lg text-sm bg-white" />
-        </div>
         <select value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)} className="border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm bg-white">
           <option value="">Tất cả campaign</option>
           {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <div className="flex-1" />
+        {hasActiveFilters && <button onClick={clearFilters} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] text-slate-500 hover:border-red-300 hover:text-red-500 flex items-center gap-1.5"><X size={14} /> Xoá bộ lọc</button>}
         <button onClick={exportExcel} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
       </div>
 
-      {filtered.length === 0 && <EmptyState text="Chưa có dữ liệu." />}
+      {merged.length === 0 && <EmptyState text="Chưa có dữ liệu." />}
+      {merged.length > 0 && filtered.length === 0 && <EmptyState text="Không có ai khớp với bộ lọc." />}
 
       {filtered.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
@@ -834,6 +895,24 @@ function AggregateAdmin() {
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
                 <th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th><th className="p-3">Follower</th>
                 <th className="p-3">Ngày đăng ký</th><th className="p-3">Đã đăng ký các campaign</th><th className="p-3 w-8"></th>
+              </tr>
+              <tr className="border-b border-[#E7E3DA] bg-[#FAF9F6]">
+                <th className="p-1.5"><input value={filters.tiktokId} onChange={(e) => setFilter("tiktokId", e.target.value)} placeholder="Lọc TikTok" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"><input value={filters.zaloPhone} onChange={(e) => setFilter("zaloPhone", e.target.value)} placeholder="Lọc SĐT" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"><input value={filters.followers} onChange={(e) => setFilter("followers", e.target.value)} placeholder="Lọc follower" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                <th className="p-1.5"></th>
+                <th className="p-1.5 flex gap-1.5">
+                  <select value={filters.status} onChange={(e) => setFilter("status", e.target.value)} className="flex-1 border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                    <option value="">Trạng thái: tất cả</option>
+                    {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                  <select value={filters.mail} onChange={(e) => setFilter("mail", e.target.value)} className="flex-1 border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                    <option value="">Mail: tất cả</option>
+                    <option value="sent">Đã gửi</option>
+                    <option value="unsent">Chưa gửi</option>
+                  </select>
+                </th>
+                <th className="p-1.5"></th>
               </tr>
             </thead>
             <tbody>
