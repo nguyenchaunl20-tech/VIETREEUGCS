@@ -71,6 +71,36 @@ export function DetailRow({ label, children }) {
   );
 }
 
+// Turns any raw URL inside a block of text (e.g. a pasted Google Drive
+// link in the Brief field) into a clickable link that opens in a new tab,
+// so people can view it directly without needing to download a file.
+const URL_SPLIT_REGEX = /(https?:\/\/[^\s]+)/g;
+const URL_TEST_REGEX = /^https?:\/\/[^\s]+$/;
+
+export function Linkify({ text }) {
+  if (!text) return null;
+  const parts = String(text).split(URL_SPLIT_REGEX);
+  return (
+    <>
+      {parts.map((part, i) =>
+        URL_TEST_REGEX.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#5B4CFF] underline underline-offset-2 hover:brightness-110 break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
 export function SampleLinksEditor({ links, onChange }) {
   const add = () => onChange([...links, { id: Math.random().toString(36).slice(2, 8), label: "", url: "" }]);
   const update = (id, patch) => onChange(links.map((l) => (l.id === id ? { ...l, ...patch } : l)));

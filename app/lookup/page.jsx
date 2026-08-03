@@ -23,7 +23,7 @@ export default function LookupPage() {
     <div>
       <Header companyName={settings.companyName} logoDataUrl={settings.logoDataUrl} />
       <div className="max-w-lg mx-auto px-4 sm:px-6 pt-10 pb-16">
-        <h1 style={{ fontFamily: "Georgia, serif" }} className="text-2xl font-medium mb-2">Tra cứu đơn đăng ký</h1>
+        <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-2xl font-medium mb-2">Tra cứu đơn đăng ký</h1>
         <p className="text-sm text-slate-500 mb-6">Nhập mã ID bạn nhận được sau khi đăng ký.</p>
         <div className="flex gap-2 mb-6">
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: 091234 0726"

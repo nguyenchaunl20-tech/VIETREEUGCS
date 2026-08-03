@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, ExternalLink, XCircle } from "lucide-react";
 import Header from "../../components/Header";
-import { DetailRow } from "../../components/ui";
+import { DetailRow, Linkify } from "../../components/ui";
 
 export default function CampaignDetailPage({ params }) {
   const [data, setData] = useState(null);
@@ -46,7 +46,7 @@ export default function CampaignDetailPage({ params }) {
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: brand?.color || "#999" }} />
           <span className="text-sm text-slate-500">{brand?.name}</span>
         </div>
-        <h1 style={{ fontFamily: "Georgia, serif" }} className="text-2xl sm:text-3xl font-medium mb-6">{campaign.name}</h1>
+        <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-2xl sm:text-3xl font-medium mb-6">{campaign.name}</h1>
 
         {closed && (
           <div className="mb-6 text-sm bg-[#FEF3C7] text-[#B45309] px-4 py-2.5 rounded-lg flex items-center gap-2">
@@ -58,7 +58,7 @@ export default function CampaignDetailPage({ params }) {
           <DetailRow label="Sản phẩm">{campaign.product}</DetailRow>
           <DetailRow label="Chi phí cast">{campaign.cost ? campaign.cost : "Không trả cast (trao đổi sản phẩm)"}</DetailRow>
           <DetailRow label="Yêu cầu về UGC">{campaign.requirements}</DetailRow>
-          <DetailRow label="Brief">{campaign.brief}</DetailRow>
+          <DetailRow label="Brief"><Linkify text={campaign.brief} /></DetailRow>
           {sampleLinks?.length > 0 && (
             <DetailRow label="Link tham khảo">
               <div className="flex flex-wrap gap-2">

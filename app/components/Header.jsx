@@ -15,7 +15,7 @@ export default function Header({ companyName, logoDataUrl, isAdminSession }) {
             </div>
           )}
           <div className="text-left">
-            <div className="font-semibold text-[15px] leading-tight" style={{ fontFamily: "Georgia, serif" }}>{companyName || "Công ty của bạn"}</div>
+            <div className="font-semibold text-[15px] leading-tight" style={{ fontFamily: "var(--font-serif), Georgia, serif" }}>{companyName || "Công ty của bạn"}</div>
             <div className="text-[11px] text-slate-400 leading-tight -mt-0.5">Tuyển UGC theo campaign</div>
           </div>
         </a>

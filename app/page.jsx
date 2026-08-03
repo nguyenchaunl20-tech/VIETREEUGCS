@@ -24,7 +24,7 @@ export default function HomePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-10">
         <div className="mb-10">
           <div className="text-[11px] tracking-widest uppercase text-slate-400 mb-2">Đang mở đăng ký</div>
-          <h1 style={{ fontFamily: "Georgia, serif" }} className="text-3xl sm:text-4xl font-medium leading-tight">
+          <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-3xl sm:text-4xl font-medium leading-tight">
             Chọn campaign phù hợp,<br />gửi thông tin của bạn.
           </h1>
         </div>

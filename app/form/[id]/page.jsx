@@ -99,7 +99,7 @@ export default function RegistrationFormPage({ params }) {
       <Header companyName={settings.companyName} logoDataUrl={settings.logoDataUrl} />
       <div className="max-w-xl mx-auto px-4 sm:px-6 pt-8 pb-16">
         <a href={`/campaign/${campaign.id}`} className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1 mb-6"><ArrowLeft size={14} /> {campaign.name}</a>
-        <h1 style={{ fontFamily: "Georgia, serif" }} className="text-2xl font-medium mb-1">Đăng ký UGC</h1>
+        <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-2xl font-medium mb-1">Đăng ký UGC</h1>
         <p className="text-sm text-slate-500 mb-7">Cho campaign <b>{campaign.name}</b></p>
 
         <div className="space-y-5">

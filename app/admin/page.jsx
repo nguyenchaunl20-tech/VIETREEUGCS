@@ -312,7 +312,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                   <MiniField label="Sản phẩm" value={draft.product} onChange={(v) => updateDraft(c.id, { product: v })} textarea disabled={!canEdit} />
                   <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={draft.cost} onChange={(v) => updateDraft(c.id, { cost: v })} disabled={!canEdit} />
                   <MiniField label="Yêu cầu về UGC" value={draft.requirements} onChange={(v) => updateDraft(c.id, { requirements: v })} textarea disabled={!canEdit} />
-                  <MiniField label="Brief" value={draft.brief} onChange={(v) => updateDraft(c.id, { brief: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Brief (có thể dán kèm link Google Drive để xem chi tiết, nhớ để chế độ chia sẻ 'Bất kỳ ai có link đều xem được')" value={draft.brief} onChange={(v) => updateDraft(c.id, { brief: v })} textarea disabled={!canEdit} />
                   <CampaignImageUpload value={draft.imageUrl} onChange={(v) => updateDraft(c.id, { imageUrl: v })} disabled={!canEdit} />
                   <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.zaloGroupLink} onChange={(v) => updateDraft(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
                   <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.trackingLink} onChange={(v) => updateDraft(c.id, { trackingLink: v })} disabled={!canEdit} />
