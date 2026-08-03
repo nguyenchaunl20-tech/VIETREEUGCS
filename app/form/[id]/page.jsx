@@ -9,7 +9,7 @@ export default function RegistrationFormPage({ params }) {
   const [form, setForm] = useState({
     tiktokId: "", tiktokLink: "", zaloPhone: "", address: "", email: "",
     gmvNote: "", gmvNumber: "", pastBrands: [], followers: "",
-    allowReup: "", aff5: "", video30days: "", contentDesc: "",
+    allowReup: "", aff5: "", video30days: "", contentDesc: "", selectedProduct: "",
   });
   const [submittedCode, setSubmittedCode] = useState(null);
   const [error, setError] = useState("");
@@ -50,9 +50,15 @@ export default function RegistrationFormPage({ params }) {
     ...f, pastBrands: f.pastBrands.includes(name) ? f.pastBrands.filter((x) => x !== name) : [...f.pastBrands, name],
   }));
 
+  const productOptions = (typeof campaign.productOptions === "string" ? JSON.parse(campaign.productOptions || "[]") : (campaign.productOptions || [])).filter((p) => p.name?.trim());
+
   const submit = async () => {
     if (!form.tiktokId.trim() || !form.tiktokLink.trim() || !form.zaloPhone.trim() || !form.email.trim()) {
       setError("Vui lòng điền đủ ID TikTok, Link TikTok, SĐT Zalo và Email.");
+      return;
+    }
+    if (productOptions.length > 0 && !form.selectedProduct) {
+      setError("Vui lòng chọn sản phẩm bạn muốn nhận.");
       return;
     }
     setError("");
@@ -103,6 +109,9 @@ export default function RegistrationFormPage({ params }) {
         <p className="text-sm text-slate-500 mb-7">Cho campaign <b>{campaign.name}</b></p>
 
         <div className="space-y-5">
+          {productOptions.length > 0 && (
+            <ChoiceField label="Sản phẩm bạn muốn nhận" value={form.selectedProduct} onChange={(v) => set("selectedProduct", v)} options={productOptions.map((p) => p.name)} />
+          )}
           <Field label="ID TikTok" required value={form.tiktokId} onChange={(v) => set("tiktokId", v)} placeholder="@username" />
           <Field label="Link TikTok (lấy trực tiếp từ TikTok)" required value={form.tiktokLink} onChange={(v) => set("tiktokLink", v)} placeholder="https://www.tiktok.com/@..." />
           <Field label="SĐT Zalo chính chủ" required value={form.zaloPhone} onChange={(v) => set("zaloPhone", v)} placeholder="09xxxxxxxx" />

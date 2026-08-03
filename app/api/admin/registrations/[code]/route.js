@@ -4,7 +4,7 @@ import { getAuthContext, canAccessCampaign } from "../../../../../lib/authz";
 
 const EDITABLE_FIELDS = [
   "tiktokId", "tiktokLink", "zaloPhone", "address", "email", "gmvNote", "gmvNumber",
-  "followers", "allowReup", "aff5", "video30days", "contentDesc", "status", "paid",
+  "followers", "allowReup", "aff5", "video30days", "contentDesc", "status", "paid", "selectedProduct",
 ];
 
 export async function PATCH(req, { params }) {
@@ -21,4 +21,16 @@ export async function PATCH(req, { params }) {
 
   const registration = await prisma.registration.update({ where: { code: params.code }, data });
   return NextResponse.json({ registration });
+}
+
+export async function DELETE(req, { params }) {
+  const ctx = await getAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+
+  const existing = await prisma.registration.findUnique({ where: { code: params.code } });
+  if (!existing) return NextResponse.json({ error: "Không tìm thấy đơn" }, { status: 404 });
+  if (!canAccessCampaign(ctx, existing.campaignId)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
+
+  await prisma.registration.delete({ where: { code: params.code } });
+  return NextResponse.json({ ok: true });
 }

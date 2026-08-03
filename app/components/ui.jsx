@@ -120,3 +120,23 @@ export function SampleLinksEditor({ links, onChange }) {
     </div>
   );
 }
+
+// Cho phép admin khai báo nhiều lựa chọn sản phẩm trong 1 campaign
+// (VD: 1 cushion nhưng có 2 màu) để UGC chọn khi đăng ký.
+export function ProductOptionsEditor({ options, onChange }) {
+  const add = () => onChange([...options, { id: Math.random().toString(36).slice(2, 8), name: "" }]);
+  const update = (id, patch) => onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  const remove = (id) => onChange(options.filter((o) => o.id !== id));
+  return (
+    <div className="space-y-2">
+      {options.map((o) => (
+        <div key={o.id} className="flex gap-2">
+          <input value={o.name} onChange={(e) => update(o.id, { name: e.target.value })} placeholder="VD: Cushion màu 21 Vin Hồng"
+            className="flex-1 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <button type="button" onClick={() => remove(o.id)} className="text-slate-400 hover:text-red-500">✕</button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className="text-sm text-[#5B4CFF]">+ Thêm lựa chọn sản phẩm</button>
+    </div>
+  );
+}

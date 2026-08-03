@@ -31,6 +31,7 @@ export default function CampaignDetailPage({ params }) {
   const brand = data.brands.find((b) => b.id === campaign.brandId);
   const closed = campaign.status === "done";
   const sampleLinks = typeof campaign.sampleLinks === "string" ? JSON.parse(campaign.sampleLinks) : campaign.sampleLinks;
+  const productOptions = typeof campaign.productOptions === "string" ? JSON.parse(campaign.productOptions || "[]") : (campaign.productOptions || []);
 
   return (
     <div>
@@ -56,6 +57,16 @@ export default function CampaignDetailPage({ params }) {
 
         <div className="space-y-5">
           <DetailRow label="Sản phẩm">{campaign.product}</DetailRow>
+          {productOptions?.filter((p) => p.name?.trim()).length > 0 && (
+            <DetailRow label="Lựa chọn sản phẩm">
+              <div className="flex flex-wrap gap-2">
+                {productOptions.filter((p) => p.name?.trim()).map((p, i) => (
+                  <span key={i} className="text-sm px-3 py-1 rounded-full bg-[#F1EFE8]">{p.name}</span>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">Bạn sẽ chọn cụ thể ở bước đăng ký.</p>
+            </DetailRow>
+          )}
           <DetailRow label="Chi phí cast">{campaign.cost ? campaign.cost : "Không trả cast (trao đổi sản phẩm)"}</DetailRow>
           <DetailRow label="Yêu cầu về UGC">{campaign.requirements}</DetailRow>
           <DetailRow label="Brief"><Linkify text={campaign.brief} /></DetailRow>

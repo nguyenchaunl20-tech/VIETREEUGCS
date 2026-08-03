@@ -40,6 +40,7 @@ export async function POST(req) {
         subject: fillTemplate(subject, vars),
         html: fillTemplate(mailBody, vars),
       });
+      await prisma.registration.update({ where: { code }, data: { mailSentAt: new Date(), lastMailSubject: subject } });
       results.push({ code, email: reg.email, ok: true });
     } catch (e) {
       results.push({ code, email: reg.email, ok: false, error: e.message || "Gửi thất bại" });

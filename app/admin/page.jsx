@@ -7,7 +7,7 @@ import {
   FileSpreadsheet, UserCog, Settings as SettingsIcon, DollarSign, X, ImagePlus,
   Mail, Send, CheckCircle2, XCircle, Loader2,
 } from "lucide-react";
-import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, STATUS } from "../components/ui";
+import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, STATUS } from "../components/ui";
 
 const ACCENT = "#5B4CFF";
 
@@ -19,6 +19,13 @@ async function api(path, options) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || "Có lỗi xảy ra");
   return json;
+}
+
+function fmtDate(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 export default function AdminPage() {
@@ -217,6 +224,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
     brief: c.brief || "", brandId: c.brandId, status: c.status || "active",
     imageUrl: c.imageUrl || "", zaloGroupLink: c.zaloGroupLink || "", trackingLink: c.trackingLink || "",
     sampleLinks: typeof c.sampleLinks === "string" ? JSON.parse(c.sampleLinks || "[]") : (c.sampleLinks || []),
+    productOptions: typeof c.productOptions === "string" ? JSON.parse(c.productOptions || "[]") : (c.productOptions || []),
   });
 
   const toggleOpen = (c) => {
@@ -310,6 +318,13 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                     </div>
                   </div>
                   <MiniField label="Sản phẩm" value={draft.product} onChange={(v) => updateDraft(c.id, { product: v })} textarea disabled={!canEdit} />
+
+                  {canEdit && (
+                    <div>
+                      <FieldLabel>Các lựa chọn sản phẩm (nếu có nhiều màu/loại để UGC chọn khi đăng ký)</FieldLabel>
+                      <ProductOptionsEditor options={draft.productOptions || []} onChange={(v) => updateDraft(c.id, { productOptions: v })} />
+                    </div>
+                  )}
                   <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={draft.cost} onChange={(v) => updateDraft(c.id, { cost: v })} disabled={!canEdit} />
                   <MiniField label="Yêu cầu về UGC" value={draft.requirements} onChange={(v) => updateDraft(c.id, { requirements: v })} textarea disabled={!canEdit} />
                   <MiniField label="Brief (có thể dán kèm link Google Drive để xem chi tiết, nhớ để chế độ chia sẻ 'Bất kỳ ai có link đều xem được')" value={draft.brief} onChange={(v) => updateDraft(c.id, { brief: v })} textarea disabled={!canEdit} />
@@ -469,11 +484,18 @@ function RegistrationsAdmin({ isOwner, session }) {
     await api(`/api/admin/registrations/${code}`, { method: "PATCH", body: JSON.stringify(patch) });
   };
 
+  const removeReg = async (code) => {
+    if (!confirm("Xoá đơn đăng ký này? Không thể hoàn tác.")) return;
+    await api(`/api/admin/registrations/${code}`, { method: "DELETE" });
+    setRows((list) => list.filter((r) => r.code !== code));
+    setSelected((prev) => { const next = new Set(prev); next.delete(code); return next; });
+  };
+
   const exportExcel = () => {
     const data = rows.map((r) => ({
       "Mã ID": r.code, "Trạng thái": STATUS[r.status]?.label, "ID TikTok": r.tiktokId, "Link TikTok": r.tiktokLink,
       "SĐT Zalo": r.zaloPhone, "Địa chỉ": r.address, "Email": r.email, "Ảnh GMV": r.gmvNote, "Số liệu GMV": r.gmvNumber,
-      "Follower": r.followers, "Cho reup": r.allowReup, "Aff 5%": r.aff5, "Video ≥30 ngày": r.video30days, "Nội dung kênh": r.contentDesc,
+      "Follower": r.followers, "Sản phẩm chọn": r.selectedProduct, "Cho reup": r.allowReup, "Aff 5%": r.aff5, "Video ≥30 ngày": r.video30days, "Nội dung kênh": r.contentDesc,
       "Đã thanh toán": r.paid === true ? "Đã chi" : r.paid === false ? "Chưa chi" : "",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -543,14 +565,15 @@ function RegistrationsAdmin({ isOwner, session }) {
 
       {rows.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
-          <table className="w-full text-sm min-w-[1100px]">
+          <table className="w-full text-sm min-w-[1500px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
                 <th className="p-3 w-8"><input type="checkbox" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleSelectAll} /></th>
                 <th className="p-3">Mã ID</th><th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th>
                 <th className="p-3">Follower</th><th className="p-3">GMV 30d</th><th className="p-3">Reup</th>
-                <th className="p-3">Aff 5%</th><th className="p-3">Trạng thái</th>
+                <th className="p-3">Aff 5%</th><th className="p-3">Sản phẩm chọn</th><th className="p-3">Ngày đăng ký</th><th className="p-3">Mail</th><th className="p-3">Trạng thái</th>
                 {campaign?.status === "done" && campaign?.cost && <th className="p-3">Thanh toán</th>}
+                <th className="p-3 w-8"></th>
               </tr>
             </thead>
             <tbody>
@@ -564,6 +587,17 @@ function RegistrationsAdmin({ isOwner, session }) {
                   <EditableCell reg={r} field="gmvNumber" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
                   <td className="p-3 text-slate-500">{r.allowReup}</td>
                   <td className="p-3 text-slate-500">{r.aff5}</td>
+                  <td className="p-3 text-slate-500">{r.selectedProduct || <span className="text-slate-300">—</span>}</td>
+                  <td className="p-3 text-slate-500 whitespace-nowrap">{fmtDate(r.createdAt)}</td>
+                  <td className="p-3">
+                    {r.mailSentAt ? (
+                      <span title={`Đã gửi lúc ${fmtDate(r.mailSentAt)}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-[#CCFBF1] text-[#0F766E]">
+                        <CheckCircle2 size={12} /> Đã gửi
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-300">Chưa gửi</span>
+                    )}
+                  </td>
                   <td className="p-3">
                     <div className="flex flex-col gap-1.5">
                       <StatusPill status={r.status} />
@@ -582,6 +616,7 @@ function RegistrationsAdmin({ isOwner, session }) {
                       </div>
                     </td>
                   )}
+                  <td className="p-3"><button onClick={() => removeReg(r.code)} className="text-slate-300 hover:text-red-500" title="Xoá đơn"><Trash2 size={14} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -708,30 +743,61 @@ function AggregateAdmin() {
   const [rows, setRows] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [q, setQ] = useState("");
+  const [campaignFilter, setCampaignFilter] = useState("");
+  const [editingCell, setEditingCell] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  useEffect(() => {
-    Promise.all([api("/api/admin/registrations?all=1"), api("/api/admin/campaigns")])
+  const loadRows = useCallback(() => {
+    return Promise.all([api("/api/admin/registrations?all=1"), api("/api/admin/campaigns")])
       .then(([r, c]) => { setRows(r.registrations); setCampaigns(c.campaigns); setLoading(false); })
       .catch((e) => { setErr(e.message); setLoading(false); });
   }, []);
+  useEffect(() => { loadRows(); }, [loadRows]);
 
   const merged = useMemo(() => {
     const map = new Map();
     rows.forEach((r) => {
       const key = (r.tiktokId || r.zaloPhone || r.code).toLowerCase();
-      if (!map.has(key)) map.set(key, { ...r, campaignsList: [{ id: r.campaignId, status: r.status }] });
-      else map.get(key).campaignsList.push({ id: r.campaignId, status: r.status });
+      if (!map.has(key)) map.set(key, { ...r, campaignsList: [{ id: r.campaignId, code: r.code, status: r.status, createdAt: r.createdAt, mailSentAt: r.mailSentAt, selectedProduct: r.selectedProduct }] });
+      else map.get(key).campaignsList.push({ id: r.campaignId, code: r.code, status: r.status, createdAt: r.createdAt, mailSentAt: r.mailSentAt, selectedProduct: r.selectedProduct });
     });
     return Array.from(map.values());
   }, [rows]);
 
-  const filtered = merged.filter((m) => !q || m.tiktokId?.toLowerCase().includes(q.toLowerCase()) || m.zaloPhone?.includes(q));
+  const filtered = merged.filter((m) => {
+    if (q && !m.tiktokId?.toLowerCase().includes(q.toLowerCase()) && !m.zaloPhone?.includes(q)) return false;
+    if (campaignFilter && !m.campaignsList.some((c) => c.id === campaignFilter)) return false;
+    return true;
+  });
+
+  const latestDate = (m) => m.campaignsList.reduce((max, c) => (c.createdAt && (!max || new Date(c.createdAt) > new Date(max)) ? c.createdAt : max), null);
+
+  const updateReg = async (code, patch) => {
+    setRows((list) => list.map((r) => (r.code === code ? { ...r, ...patch } : r)));
+    await api(`/api/admin/registrations/${code}`, { method: "PATCH", body: JSON.stringify(patch) });
+  };
+
+  // Xoá 1 lượt đăng ký (1 campaign) của người đó
+  const removeOne = async (code) => {
+    if (!confirm("Bỏ đăng ký campaign này khỏi người này?")) return;
+    await api(`/api/admin/registrations/${code}`, { method: "DELETE" });
+    setRows((list) => list.filter((r) => r.code !== code));
+  };
+
+  // Xoá toàn bộ người này (tất cả các campaign đã đăng ký)
+  const removePerson = async (m) => {
+    if (!confirm(`Xoá hẳn "${m.tiktokId || m.zaloPhone}" khỏi tất cả campaign? Không thể hoàn tác.`)) return;
+    for (const c of m.campaignsList) {
+      await api(`/api/admin/registrations/${c.code}`, { method: "DELETE" });
+    }
+    setRows((list) => list.filter((r) => !m.campaignsList.some((c) => c.code === r.code)));
+  };
 
   const exportExcel = () => {
     const data = filtered.map((m) => ({
       "ID TikTok": m.tiktokId, "SĐT Zalo": m.zaloPhone, "Email": m.email, "Follower": m.followers,
+      "Ngày đăng ký gần nhất": fmtDate(latestDate(m)),
       "Campaign đã đăng ký": m.campaignsList.map((c) => campaigns.find((cc) => cc.id === c.id)?.name).filter(Boolean).join(", "),
       "Số campaign": m.campaignsList.length,
     }));
@@ -746,11 +812,15 @@ function AggregateAdmin() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo TikTok / SĐT" className="w-full pl-8 pr-3 py-2 border border-[#E7E3DA] rounded-lg text-sm bg-white" />
         </div>
+        <select value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)} className="border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm bg-white">
+          <option value="">Tất cả campaign</option>
+          {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
         <div className="flex-1" />
         <button onClick={exportExcel} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
       </div>
@@ -759,27 +829,37 @@ function AggregateAdmin() {
 
       {filtered.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[1050px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
-                <th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th><th className="p-3">Follower</th><th className="p-3">Đã đăng ký các campaign</th>
+                <th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th><th className="p-3">Follower</th>
+                <th className="p-3">Ngày đăng ký</th><th className="p-3">Đã đăng ký các campaign</th><th className="p-3 w-8"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((m, i) => (
-                <tr key={i} className="border-b border-[#F1EFE8] last:border-0">
-                  <td className="p-3">{m.tiktokId}</td>
-                  <td className="p-3">{m.zaloPhone}</td>
-                  <td className="p-3">{m.followers}</td>
+                <tr key={i} className="border-b border-[#F1EFE8] last:border-0 align-top">
+                  <AggEditableCell m={m} field="tiktokId" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
+                  <AggEditableCell m={m} field="zaloPhone" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
+                  <AggEditableCell m={m} field="followers" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
+                  <td className="p-3 text-slate-500 whitespace-nowrap">{fmtDate(latestDate(m))}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1.5">
                       {m.campaignsList.map((c, idx) => {
                         const camp = campaigns.find((cc) => cc.id === c.id);
                         const s = STATUS[c.status] || STATUS.pending;
-                        return <span key={idx} className="text-[11px] px-2 py-1 rounded-full" style={{ background: s.bg, color: s.color }}>{camp?.name || "—"}</span>;
+                        return (
+                          <span key={idx} title={`Đăng ký: ${fmtDate(c.createdAt)}${c.selectedProduct ? ` · SP: ${c.selectedProduct}` : ""}${c.mailSentAt ? ` · Đã gửi mail: ${fmtDate(c.mailSentAt)}` : " · Chưa gửi mail"}`}
+                            className="group text-[11px] pl-2 pr-1 py-1 rounded-full flex items-center gap-1" style={{ background: s.bg, color: s.color }}>
+                            {c.mailSentAt && <CheckCircle2 size={11} />}
+                            {camp?.name || "—"}
+                            <button onClick={() => removeOne(c.code)} className="opacity-40 hover:opacity-100 hover:text-red-500 ml-0.5" title="Bỏ đăng ký campaign này"><X size={11} /></button>
+                          </span>
+                        );
                       })}
                     </div>
                   </td>
+                  <td className="p-3"><button onClick={() => removePerson(m)} className="text-slate-300 hover:text-red-500" title="Xoá hẳn người này"><Trash2 size={14} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -787,6 +867,26 @@ function AggregateAdmin() {
         </div>
       )}
     </div>
+  );
+}
+
+function AggEditableCell({ m, field, editingCell, setEditingCell, updateReg }) {
+  const isEditing = editingCell?.code === m.code && editingCell?.field === field;
+  const [val, setVal] = useState(m[field] || "");
+  if (isEditing) {
+    return (
+      <td className="p-2">
+        <input autoFocus value={val} onChange={(e) => setVal(e.target.value)}
+          onBlur={() => { updateReg(m.code, { [field]: val }); setEditingCell(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { updateReg(m.code, { [field]: val }); setEditingCell(null); } }}
+          className="w-full border border-[#5B4CFF] rounded px-2 py-1 text-sm" />
+      </td>
+    );
+  }
+  return (
+    <td className="p-3 cursor-text hover:bg-[#FAF9F6]" onClick={() => { setVal(m[field] || ""); setEditingCell({ code: m.code, field }); }}>
+      {m[field] || <span className="text-slate-300">—</span>}
+    </td>
   );
 }
 

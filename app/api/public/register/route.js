@@ -7,7 +7,7 @@ export async function POST(req) {
   const {
     campaignId, tiktokId, tiktokLink, zaloPhone, address, email,
     gmvNote, gmvNumber, pastBrands, followers, allowReup, aff5,
-    video30days, contentDesc,
+    video30days, contentDesc, selectedProduct,
   } = body;
 
   if (!campaignId || !tiktokId?.trim() || !tiktokLink?.trim() || !zaloPhone?.trim() || !email?.trim()) {
@@ -42,6 +42,7 @@ export async function POST(req) {
       followers: followers || "",
       allowReup: allowReup || "", aff5: aff5 || "",
       video30days: video30days || "", contentDesc: contentDesc || "",
+      selectedProduct: selectedProduct || "",
       status: "pending", paid: null,
     },
   });
