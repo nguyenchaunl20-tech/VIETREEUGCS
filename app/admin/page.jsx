@@ -278,7 +278,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                   <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={c.cost} onChange={(v) => update(c.id, { cost: v })} disabled={!canEdit} />
                   <MiniField label="Yêu cầu về UGC" value={c.requirements} onChange={(v) => update(c.id, { requirements: v })} textarea disabled={!canEdit} />
                   <MiniField label="Brief" value={c.brief} onChange={(v) => update(c.id, { brief: v })} textarea disabled={!canEdit} />
-                  <MiniField label="Ảnh đại diện campaign (dán link ảnh - dùng để trang trí, hiển thị ở trang chủ và trang chi tiết)" value={c.imageUrl || ""} onChange={(v) => update(c.id, { imageUrl: v })} disabled={!canEdit} />
+                  <CampaignImageUpload value={c.imageUrl || ""} onChange={(v) => update(c.id, { imageUrl: v })} disabled={!canEdit} />
                   <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.zaloGroupLink || ""} onChange={(v) => update(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
                   <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.trackingLink || ""} onChange={(v) => update(c.id, { trackingLink: v })} disabled={!canEdit} />
 
@@ -337,6 +337,44 @@ function MiniField({ label, value, onChange, textarea, disabled }) {
       ) : (
         <input value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-sm disabled:bg-[#F7F7F5]" />
       )}
+    </div>
+  );
+}
+
+function CampaignImageUpload({ value, onChange, disabled }) {
+  const [err, setErr] = useState("");
+
+  const onFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) { setErr("Ảnh quá lớn, vui lòng chọn ảnh dưới 1.5MB."); return; }
+    setErr("");
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div>
+      <FieldLabel>Ảnh đại diện campaign (dùng để trang trí, hiển thị ở trang chủ và trang chi tiết)</FieldLabel>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <img src={value} alt="" className="w-20 h-14 rounded-lg object-cover border border-[#E7E3DA]" />
+        ) : (
+          <div className="w-20 h-14 rounded-lg bg-[#F1EFE8] flex items-center justify-center text-slate-300"><ImagePlus size={18} /></div>
+        )}
+        {!disabled && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm px-3 py-1.5 rounded-lg border border-[#E7E3DA] cursor-pointer hover:border-[#5B4CFF] w-fit">
+              Tải ảnh lên
+              <input type="file" accept="image/*" onChange={onFile} className="hidden" />
+            </label>
+            {value && <button type="button" onClick={() => onChange("")} className="text-xs text-red-500 text-left">Xoá ảnh</button>}
+          </div>
+        )}
+      </div>
+      {err && <div className="text-xs text-red-500 mt-1.5">{err}</div>}
     </div>
   );
 }
