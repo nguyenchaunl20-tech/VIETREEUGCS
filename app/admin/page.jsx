@@ -201,6 +201,9 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
   const [campaigns, setCampaigns] = useState([]);
   const [refLinks, setRefLinks] = useState([]);
   const [openId, setOpenId] = useState(null);
+  const [drafts, setDrafts] = useState({});
+  const [savingId, setSavingId] = useState(null);
+  const [savedFlashId, setSavedFlashId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -209,16 +212,48 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
   }, [canEdit]);
   useEffect(() => { load(); }, [load]);
 
+  const draftOf = (c) => ({
+    name: c.name || "", product: c.product || "", cost: c.cost || "", requirements: c.requirements || "",
+    brief: c.brief || "", brandId: c.brandId, status: c.status || "active",
+    imageUrl: c.imageUrl || "", zaloGroupLink: c.zaloGroupLink || "", trackingLink: c.trackingLink || "",
+    sampleLinks: typeof c.sampleLinks === "string" ? JSON.parse(c.sampleLinks || "[]") : (c.sampleLinks || []),
+  });
+
+  const toggleOpen = (c) => {
+    if (openId === c.id) { setOpenId(null); return; }
+    setOpenId(c.id);
+    setDrafts((d) => ({ ...d, [c.id]: draftOf(c) }));
+  };
+
+  const updateDraft = (id, patch) => setDrafts((d) => ({ ...d, [id]: { ...d[id], ...patch } }));
+
   const addCampaign = async () => {
     if (brands.length === 0) { alert("Hãy thêm brand trước."); return; }
     const { campaign } = await api("/api/admin/campaigns", { method: "POST", body: JSON.stringify({ brandId: brands[0].id, name: "Campaign mới" }) });
     setCampaigns((c) => [campaign, ...c]);
     setOpenId(campaign.id);
+    setDrafts((d) => ({ ...d, [campaign.id]: draftOf(campaign) }));
   };
-  const update = async (id, patch) => {
-    setCampaigns((list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await api(`/api/admin/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+
+  const saveDraft = async (id) => {
+    const draft = drafts[id];
+    if (!draft) return;
+    setSavingId(id);
+    try {
+      const { campaign } = await api(`/api/admin/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(draft) });
+      setCampaigns((list) => list.map((c) => (c.id === id ? campaign : c)));
+      setDrafts((d) => ({ ...d, [id]: draftOf(campaign) }));
+      setSavedFlashId(id);
+      setTimeout(() => setSavedFlashId((cur) => (cur === id ? null : cur)), 1800);
+    } catch (e) {
+      alert(e.message || "Lưu thất bại, thử lại nhé.");
+    } finally {
+      setSavingId(null);
+    }
   };
+
+  const cancelDraft = (c) => setDrafts((d) => ({ ...d, [c.id]: draftOf(c) }));
+
   const remove = async (id) => { await api(`/api/admin/campaigns/${id}`, { method: "DELETE" }); setCampaigns((list) => list.filter((c) => c.id !== id)); if (openId === id) setOpenId(null); };
 
   const addRefLink = async () => {
@@ -250,10 +285,10 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
         {campaigns.map((c) => {
           const brand = brands.find((b) => b.id === c.brandId);
           const open = openId === c.id;
-          const sampleLinks = typeof c.sampleLinks === "string" ? JSON.parse(c.sampleLinks) : c.sampleLinks;
+          const draft = drafts[c.id] || draftOf(c);
           return (
             <div key={c.id} className="bg-white border border-[#E7E3DA] rounded-xl overflow-hidden">
-              <button onClick={() => setOpenId(open ? null : c.id)} className="w-full flex items-center justify-between px-4 py-3">
+              <button onClick={() => toggleOpen(c)} className="w-full flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: brand?.color || "#999" }} />
                   <span className="font-medium text-sm">{c.name}</span>
@@ -266,33 +301,33 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
               {open && (
                 <div className="px-4 pb-4 space-y-3 border-t border-[#EFEBE2] pt-4">
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <MiniField label="Tên campaign" value={c.name} onChange={(v) => update(c.id, { name: v })} disabled={!canEdit} />
+                    <MiniField label="Tên campaign" value={draft.name} onChange={(v) => updateDraft(c.id, { name: v })} disabled={!canEdit} />
                     <div>
                       <FieldLabel>Brand</FieldLabel>
-                      <select value={c.brandId} disabled={!canEdit} onChange={(e) => update(c.id, { brandId: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-sm bg-white">
+                      <select value={draft.brandId} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { brandId: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-sm bg-white">
                         {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     </div>
                   </div>
-                  <MiniField label="Sản phẩm" value={c.product} onChange={(v) => update(c.id, { product: v })} textarea disabled={!canEdit} />
-                  <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={c.cost} onChange={(v) => update(c.id, { cost: v })} disabled={!canEdit} />
-                  <MiniField label="Yêu cầu về UGC" value={c.requirements} onChange={(v) => update(c.id, { requirements: v })} textarea disabled={!canEdit} />
-                  <MiniField label="Brief" value={c.brief} onChange={(v) => update(c.id, { brief: v })} textarea disabled={!canEdit} />
-                  <CampaignImageUpload value={c.imageUrl || ""} onChange={(v) => update(c.id, { imageUrl: v })} disabled={!canEdit} />
-                  <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.zaloGroupLink || ""} onChange={(v) => update(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
-                  <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={c.trackingLink || ""} onChange={(v) => update(c.id, { trackingLink: v })} disabled={!canEdit} />
+                  <MiniField label="Sản phẩm" value={draft.product} onChange={(v) => updateDraft(c.id, { product: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Chi phí cast (để trống nếu không trả cast)" value={draft.cost} onChange={(v) => updateDraft(c.id, { cost: v })} disabled={!canEdit} />
+                  <MiniField label="Yêu cầu về UGC" value={draft.requirements} onChange={(v) => updateDraft(c.id, { requirements: v })} textarea disabled={!canEdit} />
+                  <MiniField label="Brief" value={draft.brief} onChange={(v) => updateDraft(c.id, { brief: v })} textarea disabled={!canEdit} />
+                  <CampaignImageUpload value={draft.imageUrl} onChange={(v) => updateDraft(c.id, { imageUrl: v })} disabled={!canEdit} />
+                  <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.zaloGroupLink} onChange={(v) => updateDraft(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
+                  <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.trackingLink} onChange={(v) => updateDraft(c.id, { trackingLink: v })} disabled={!canEdit} />
 
                   {canEdit && (
                     <div>
                       <FieldLabel>Link tham khảo (hiển thị cho UGC xem)</FieldLabel>
-                      <SampleLinksEditor links={sampleLinks || []} onChange={(v) => update(c.id, { sampleLinks: v })} />
+                      <SampleLinksEditor links={draft.sampleLinks || []} onChange={(v) => updateDraft(c.id, { sampleLinks: v })} />
                     </div>
                   )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#EFEBE2] flex-wrap gap-2">
                     {canEdit && (
                       <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={c.status === "done"} onChange={(e) => update(c.id, { status: e.target.checked ? "done" : "active" })} />
+                        <input type="checkbox" checked={draft.status === "done"} onChange={(e) => updateDraft(c.id, { status: e.target.checked ? "done" : "active" })} />
                         Đánh dấu đã hoàn thành (đóng đăng ký)
                       </label>
                     )}
@@ -301,6 +336,16 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                       {canEdit && <button onClick={() => remove(c.id)} className="text-xs text-red-500 flex items-center gap-1"><Trash2 size={12} />Xoá</button>}
                     </div>
                   </div>
+
+                  {canEdit && (
+                    <div className="flex items-center gap-2 pt-3 border-t border-[#EFEBE2]">
+                      <button onClick={() => saveDraft(c.id)} disabled={savingId === c.id} style={{ background: ACCENT }} className="text-white text-sm px-4 py-2 rounded-lg flex items-center gap-1.5 disabled:opacity-60">
+                        {savingId === c.id ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {savingId === c.id ? "Đang lưu…" : "Lưu thay đổi"}
+                      </button>
+                      <button onClick={() => cancelDraft(c)} className="text-sm px-4 py-2 rounded-lg border border-[#E7E3DA]">Huỷ thay đổi</button>
+                      {savedFlashId === c.id && <span className="text-sm text-[#0F766E] flex items-center gap-1"><CheckCircle2 size={14} /> Đã lưu</span>}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -327,6 +372,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
     </div>
   );
 }
+
 
 function MiniField({ label, value, onChange, textarea, disabled }) {
   return (
