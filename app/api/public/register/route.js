@@ -7,10 +7,10 @@ export async function POST(req) {
   const {
     campaignId, tiktokId, tiktokLink, zaloPhone, address, email,
     gmvNote, gmvNumber, pastBrands, followers, allowReup, aff5,
-    video30days, contentDesc, selectedProduct,
+    video30days, contentDesc, selectedProduct, extraFields,
   } = body;
 
-  if (!campaignId || !tiktokId?.trim() || !tiktokLink?.trim() || !zaloPhone?.trim() || !email?.trim()) {
+  if (!campaignId || !zaloPhone?.trim() || !email?.trim()) {
     return NextResponse.json({ ok: false, error: "Thiếu thông tin bắt buộc." }, { status: 400 });
   }
 
@@ -19,6 +19,17 @@ export async function POST(req) {
   if (campaign.status === "done") {
     return NextResponse.json({ ok: false, error: "Campaign này đã đóng đăng ký." }, { status: 400 });
   }
+
+  const requireTiktok = campaign.requireTiktok !== false;
+  if (requireTiktok && (!tiktokId?.trim() || !tiktokLink?.trim())) {
+    return NextResponse.json({ ok: false, error: "Thiếu ID TikTok hoặc Link TikTok." }, { status: 400 });
+  }
+  const channelFields = typeof campaign.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign.channelFields || []);
+  const missing = channelFields.find((f) => f.required && !String((extraFields || {})[f.id] || "").trim());
+  if (missing) {
+    return NextResponse.json({ ok: false, error: `Thiếu thông tin bắt buộc: ${missing.label}` }, { status: 400 });
+  }
+
   const brand = await prisma.brand.findUnique({ where: { id: campaign.brandId } });
 
   const now = new Date();
@@ -35,7 +46,7 @@ export async function POST(req) {
     data: {
       code: finalCode,
       campaignId,
-      tiktokId, tiktokLink, zaloPhone,
+      tiktokId: tiktokId || "", tiktokLink: tiktokLink || "", zaloPhone,
       address: address || "", email,
       gmvNote: gmvNote || "", gmvNumber: gmvNumber || "",
       pastBrands: JSON.stringify(pastBrands || []),
@@ -43,6 +54,7 @@ export async function POST(req) {
       allowReup: allowReup || "", aff5: aff5 || "",
       video30days: video30days || "", contentDesc: contentDesc || "",
       selectedProduct: selectedProduct || "",
+      extraFields: JSON.stringify(extraFields || {}),
       status: "pending", paid: null,
     },
   });

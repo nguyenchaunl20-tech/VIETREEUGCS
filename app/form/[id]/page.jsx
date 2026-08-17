@@ -11,6 +11,7 @@ export default function RegistrationFormPage({ params }) {
     gmvNote: "", gmvNumber: "", pastBrands: [], followers: "",
     allowReup: "", aff5: "", video30days: "", contentDesc: "", selectedProduct: "",
   });
+  const [extra, setExtra] = useState({});
   const [submittedCode, setSubmittedCode] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +46,11 @@ export default function RegistrationFormPage({ params }) {
     );
   }
 
+  const requireTiktok = campaign.requireTiktok !== false;
+  const channelFields = (typeof campaign.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign.channelFields || [])).filter((f) => f.label?.trim());
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setExtraField = (id, v) => setExtra((e) => ({ ...e, [id]: v }));
   const toggleBrandHistory = (name) => setForm((f) => ({
     ...f, pastBrands: f.pastBrands.includes(name) ? f.pastBrands.filter((x) => x !== name) : [...f.pastBrands, name],
   }));
@@ -53,8 +58,17 @@ export default function RegistrationFormPage({ params }) {
   const productOptions = (typeof campaign.productOptions === "string" ? JSON.parse(campaign.productOptions || "[]") : (campaign.productOptions || [])).filter((p) => p.name?.trim());
 
   const submit = async () => {
-    if (!form.tiktokId.trim() || !form.tiktokLink.trim() || !form.zaloPhone.trim() || !form.email.trim()) {
-      setError("Vui lòng điền đủ ID TikTok, Link TikTok, SĐT Zalo và Email.");
+    if (requireTiktok && (!form.tiktokId.trim() || !form.tiktokLink.trim())) {
+      setError("Vui lòng điền đủ ID TikTok và Link TikTok.");
+      return;
+    }
+    if (!form.zaloPhone.trim() || !form.email.trim()) {
+      setError("Vui lòng điền đủ SĐT Zalo và Email.");
+      return;
+    }
+    const missingChannel = channelFields.find((f) => f.required && !String(extra[f.id] || "").trim());
+    if (missingChannel) {
+      setError(`Vui lòng điền "${missingChannel.label}".`);
       return;
     }
     if (productOptions.length > 0 && !form.selectedProduct) {
@@ -66,7 +80,7 @@ export default function RegistrationFormPage({ params }) {
     const res = await fetch("/api/public/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId: campaign.id, ...form }),
+      body: JSON.stringify({ campaignId: campaign.id, ...form, extraFields: extra }),
     });
     const json = await res.json();
     setSubmitting(false);
@@ -112,8 +126,15 @@ export default function RegistrationFormPage({ params }) {
           {productOptions.length > 0 && (
             <ChoiceField label="Sản phẩm bạn muốn nhận" value={form.selectedProduct} onChange={(v) => set("selectedProduct", v)} options={productOptions.map((p) => p.name)} />
           )}
-          <Field label="ID TikTok" required value={form.tiktokId} onChange={(v) => set("tiktokId", v)} placeholder="@username" />
-          <Field label="Link TikTok (lấy trực tiếp từ TikTok)" required value={form.tiktokLink} onChange={(v) => set("tiktokLink", v)} placeholder="https://www.tiktok.com/@..." />
+          {requireTiktok && (
+            <>
+              <Field label="ID TikTok" required value={form.tiktokId} onChange={(v) => set("tiktokId", v)} placeholder="@username" />
+              <Field label="Link TikTok (lấy trực tiếp từ TikTok)" required value={form.tiktokLink} onChange={(v) => set("tiktokLink", v)} placeholder="https://www.tiktok.com/@..." />
+            </>
+          )}
+          {channelFields.map((f) => (
+            <Field key={f.id} label={f.label} required={!!f.required} value={extra[f.id] || ""} onChange={(v) => setExtraField(f.id, v)} placeholder={f.placeholder || ""} />
+          ))}
           <Field label="SĐT Zalo chính chủ" required value={form.zaloPhone} onChange={(v) => set("zaloPhone", v)} placeholder="09xxxxxxxx" />
           <Field label="Địa chỉ nhận hàng" value={form.address} onChange={(v) => set("address", v)} placeholder="Số nhà, đường, phường/xã, tỉnh/thành" textarea />
           <Field label="Email nhận thông tin" required value={form.email} onChange={(v) => set("email", v)} placeholder="you@email.com" />

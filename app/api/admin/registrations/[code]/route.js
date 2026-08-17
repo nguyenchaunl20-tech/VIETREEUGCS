@@ -5,6 +5,10 @@ import { getAuthContext, canAccessCampaign } from "../../../../../lib/authz";
 const EDITABLE_FIELDS = [
   "tiktokId", "tiktokLink", "zaloPhone", "address", "email", "gmvNote", "gmvNumber",
   "followers", "allowReup", "aff5", "video30days", "contentDesc", "status", "paid", "selectedProduct",
+  // Vận hành campaign: gửi hàng, air bài, số liệu video, GMV/đơn hàng thực tế
+  "shipStatus", "shipDate", "postLink", "postDate", "views", "likes", "comments", "shares", "videoGmv", "videoOrders",
+  // Thông tin kênh SNS khác tuỳ campaign (Instagram, Facebook, YouTube...)
+  "extraFields",
 ];
 
 export async function PATCH(req, { params }) {

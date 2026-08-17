@@ -18,11 +18,13 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Ảnh quá lớn, vui lòng dùng ảnh nhỏ hơn (dưới 1.5MB)." }, { status: 400 });
   }
   const data = {};
-  ["name", "product", "cost", "requirements", "brief", "brandId", "status", "imageUrl", "zaloGroupLink", "trackingLink"].forEach((k) => {
+  ["name", "product", "cost", "requirements", "brief", "brandId", "status", "imageUrl", "zaloGroupLink", "trackingLink",
+    "goalCreators", "goalViews", "goalGmv", "goalOrders", "requireTiktok"].forEach((k) => {
     if (body[k] !== undefined) data[k] = body[k];
   });
   if (body.sampleLinks !== undefined) data.sampleLinks = JSON.stringify(body.sampleLinks);
   if (body.productOptions !== undefined) data.productOptions = JSON.stringify(body.productOptions);
+  if (body.channelFields !== undefined) data.channelFields = JSON.stringify(body.channelFields);
   const campaign = await prisma.campaign.update({ where: { id: params.id }, data });
   return NextResponse.json({ campaign });
 }

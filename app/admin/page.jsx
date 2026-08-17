@@ -5,9 +5,10 @@ import {
   Plus, Pencil, Save, Trash2, ChevronRight, ArrowLeft, Search, Download, Upload,
   Lock, LogOut, Eye, EyeOff, ShieldCheck, Layers, Building2, ClipboardList,
   FileSpreadsheet, UserCog, Settings as SettingsIcon, DollarSign, X, ImagePlus,
-  Mail, Send, CheckCircle2, XCircle, Loader2,
+  Mail, Send, CheckCircle2, XCircle, Loader2, Truck, Video, Heart, MessageCircle,
+  Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle,
 } from "lucide-react";
-import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, STATUS } from "../components/ui";
+import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, ChannelFieldsEditor, STATUS } from "../components/ui";
 
 const ACCENT = "#5B4CFF";
 
@@ -91,7 +92,9 @@ const ALL_TABS = [
   { key: "campaigns", label: "Campaigns", icon: Layers },
   { key: "brands", label: "Brands", icon: Building2 },
   { key: "registrations", label: "Đơn đăng ký", icon: ClipboardList },
+  { key: "results", label: "Kết quả Campaign", icon: BarChart3 },
   { key: "aggregate", label: "Bảng tổng hợp", icon: FileSpreadsheet },
+  { key: "koc-check", label: "Kiểm tra KOC", icon: Users },
   { key: "staff", label: "Nhân sự & phân quyền", icon: UserCog },
   { key: "settings", label: "Cài đặt", icon: SettingsIcon },
 ];
@@ -102,7 +105,7 @@ function AdminDashboard({ session, onLogout }) {
     if (isOwner) return true;
     if (t.key === "staff" || t.key === "settings") return false;
     if (t.key === "brands") return !!session.canManageBrands;
-    if (t.key === "aggregate") return !!session.canViewAggregate;
+    if (t.key === "aggregate" || t.key === "koc-check") return !!session.canViewAggregate;
     return true;
   });
   const [tab, setTab] = useState(visibleTabs[0]?.key || "campaigns");
@@ -129,7 +132,9 @@ function AdminDashboard({ session, onLogout }) {
       {tab === "campaigns" && <CampaignsAdmin isOwner={isOwner} canManageCampaigns={!!session.canManageCampaigns} />}
       {tab === "brands" && (isOwner || session.canManageBrands) && <BrandsAdmin />}
       {tab === "registrations" && <RegistrationsAdmin isOwner={isOwner} session={session} />}
+      {tab === "results" && <ResultsAdmin isOwner={isOwner} session={session} />}
       {tab === "aggregate" && <AggregateAdmin />}
+      {tab === "koc-check" && <KocCheckAdmin />}
       {tab === "staff" && isOwner && <StaffAdmin />}
       {tab === "settings" && isOwner && <SettingsAdmin />}
     </div>
@@ -225,6 +230,9 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
     imageUrl: c.imageUrl || "", zaloGroupLink: c.zaloGroupLink || "", trackingLink: c.trackingLink || "",
     sampleLinks: typeof c.sampleLinks === "string" ? JSON.parse(c.sampleLinks || "[]") : (c.sampleLinks || []),
     productOptions: typeof c.productOptions === "string" ? JSON.parse(c.productOptions || "[]") : (c.productOptions || []),
+    requireTiktok: c.requireTiktok !== false,
+    channelFields: typeof c.channelFields === "string" ? JSON.parse(c.channelFields || "[]") : (c.channelFields || []),
+    goalCreators: c.goalCreators ?? "", goalViews: c.goalViews ?? "", goalGmv: c.goalGmv ?? "", goalOrders: c.goalOrders ?? "",
   });
 
   const toggleOpen = (c) => {
@@ -332,12 +340,51 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                   <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.zaloGroupLink} onChange={(v) => updateDraft(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
                   <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.trackingLink} onChange={(v) => updateDraft(c.id, { trackingLink: v })} disabled={!canEdit} />
 
+                  <div className="pt-2 border-t border-[#EFEBE2]">
+                    <FieldLabel>Thông tin kênh cần thu thập khi đăng ký</FieldLabel>
+                    <label className="flex items-center gap-2 text-sm mb-2.5">
+                      <input type="checkbox" checked={draft.requireTiktok} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { requireTiktok: e.target.checked })} />
+                      Yêu cầu ID + Link TikTok (bỏ chọn nếu campaign này không cần TikTok)
+                    </label>
+                    <div className="text-[11px] text-slate-400 mb-1.5">Trường kênh SNS khác (VD: Instagram, Facebook, YouTube...) — tuỳ campaign mà thêm/bớt:</div>
+                    {canEdit ? (
+                      <ChannelFieldsEditor fields={draft.channelFields || []} onChange={(v) => updateDraft(c.id, { channelFields: v })} />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(draft.channelFields || []).length === 0 && <span className="text-xs text-slate-300">Không có trường nào khác.</span>}
+                        {(draft.channelFields || []).map((f) => <span key={f.id} className="text-xs px-2 py-1 rounded-full bg-[#F1EFE8] text-slate-500">{f.label}{f.required ? " *" : ""}</span>)}
+                      </div>
+                    )}
+                  </div>
+
                   {canEdit && (
                     <div>
                       <FieldLabel>Link tham khảo (hiển thị cho UGC xem)</FieldLabel>
                       <SampleLinksEditor links={draft.sampleLinks || []} onChange={(v) => updateDraft(c.id, { sampleLinks: v })} />
                     </div>
                   )}
+
+                  <div className="pt-2 border-t border-[#EFEBE2]">
+                    <FieldLabel><span className="flex items-center gap-1.5"><Target size={13} /> Mục tiêu campaign (để trống nếu không theo dõi %)</span></FieldLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+                      <div>
+                        <label className="text-[11px] text-slate-400">Số KOC/video</label>
+                        <input type="number" min="0" value={draft.goalCreators} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { goalCreators: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">Tổng view</label>
+                        <input type="number" min="0" value={draft.goalViews} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { goalViews: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">GMV mục tiêu</label>
+                        <input type="number" min="0" value={draft.goalGmv} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { goalGmv: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">Số đơn mục tiêu</label>
+                        <input type="number" min="0" value={draft.goalOrders} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { goalOrders: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#EFEBE2] flex-wrap gap-2">
                     {canEdit && (
@@ -450,6 +497,7 @@ function RegistrationsAdmin({ isOwner, session }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(() => new Set());
   const [showMailModal, setShowMailModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [filters, setFilters] = useState({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
   const setFilter = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
   const clearFilters = () => setFilters({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
@@ -482,6 +530,7 @@ function RegistrationsAdmin({ isOwner, session }) {
   };
 
   const campaign = campaigns.find((c) => c.id === campaignId);
+  const channelFields = (typeof campaign?.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign?.channelFields || [])).filter((f) => f.label?.trim());
 
   const filteredRows = rows.filter((r) => {
     if (filters.code && !r.code?.toLowerCase().includes(filters.code.toLowerCase())) return false;
@@ -507,19 +556,6 @@ function RegistrationsAdmin({ isOwner, session }) {
     await api(`/api/admin/registrations/${code}`, { method: "DELETE" });
     setRows((list) => list.filter((r) => r.code !== code));
     setSelected((prev) => { const next = new Set(prev); next.delete(code); return next; });
-  };
-
-  const exportExcel = () => {
-    const data = filteredRows.map((r) => ({
-      "Mã ID": r.code, "Trạng thái": STATUS[r.status]?.label, "ID TikTok": r.tiktokId, "Link TikTok": r.tiktokLink,
-      "SĐT Zalo": r.zaloPhone, "Địa chỉ": r.address, "Email": r.email, "Ảnh GMV": r.gmvNote, "Số liệu GMV": r.gmvNumber,
-      "Follower": r.followers, "Sản phẩm chọn": r.selectedProduct, "Cho reup": r.allowReup, "Aff 5%": r.aff5, "Video ≥30 ngày": r.video30days, "Nội dung kênh": r.contentDesc,
-      "Đã thanh toán": r.paid === true ? "Đã chi" : r.paid === false ? "Chưa chi" : "",
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Đơn đăng ký");
-    XLSX.writeFile(wb, `${campaign?.name || "campaign"}.xlsx`);
   };
 
   const importExcel = (e) => {
@@ -561,7 +597,7 @@ function RegistrationsAdmin({ isOwner, session }) {
             <Mail size={14} /> Gửi mail cho {selected.size} bạn đã chọn
           </button>
         )}
-        <button onClick={exportExcel} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
+        <button onClick={() => setShowExportModal(true)} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
         <label className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF] cursor-pointer">
           <Upload size={14} /> Nhập Excel
           <input type="file" accept=".xlsx,.xls" onChange={importExcel} className="hidden" />
@@ -579,6 +615,15 @@ function RegistrationsAdmin({ isOwner, session }) {
         />
       )}
 
+      {showExportModal && (
+        <RegistrationsExportModal
+          rows={rows}
+          campaign={campaign}
+          initialFilters={filters}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+
       {campaigns.length === 0 && <EmptyState text="Bạn chưa được cấp quyền xem campaign nào." />}
       {campaigns.length > 0 && rows.length === 0 && <EmptyState text="Chưa có đơn đăng ký nào cho campaign này." />}
       {rows.length > 0 && filteredRows.length === 0 && <EmptyState text="Không có đơn nào khớp với bộ lọc." />}
@@ -589,7 +634,9 @@ function RegistrationsAdmin({ isOwner, session }) {
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
                 <th className="p-3 w-8"><input type="checkbox" checked={filteredRows.length > 0 && selected.size === filteredRows.length} onChange={toggleSelectAll} /></th>
-                <th className="p-3">Mã ID</th><th className="p-3">TikTok</th><th className="p-3">SĐT Zalo</th>
+                <th className="p-3">Mã ID</th><th className="p-3">TikTok</th>
+                {channelFields.map((f) => <th key={f.id} className="p-3">{f.label}</th>)}
+                <th className="p-3">SĐT Zalo</th>
                 <th className="p-3">Follower</th><th className="p-3">GMV 30d</th><th className="p-3">Reup</th>
                 <th className="p-3">Aff 5%</th><th className="p-3">Sản phẩm chọn</th><th className="p-3">Ngày đăng ký</th><th className="p-3">Mail</th><th className="p-3">Trạng thái</th>
                 {campaign?.status === "done" && campaign?.cost && <th className="p-3">Thanh toán</th>}
@@ -599,6 +646,7 @@ function RegistrationsAdmin({ isOwner, session }) {
                 <th className="p-1.5"></th>
                 <th className="p-1.5"><input value={filters.code} onChange={(e) => setFilter("code", e.target.value)} placeholder="Lọc mã ID" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
                 <th className="p-1.5"><input value={filters.tiktokId} onChange={(e) => setFilter("tiktokId", e.target.value)} placeholder="Lọc TikTok" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
+                {channelFields.map((f) => <th key={f.id} className="p-1.5"></th>)}
                 <th className="p-1.5"><input value={filters.zaloPhone} onChange={(e) => setFilter("zaloPhone", e.target.value)} placeholder="Lọc SĐT" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
                 <th className="p-1.5"><input value={filters.followers} onChange={(e) => setFilter("followers", e.target.value)} placeholder="Lọc follower" className="w-full border border-[#E7E3DA] rounded px-2 py-1 text-xs bg-white" /></th>
                 <th className="p-1.5"></th>
@@ -637,6 +685,7 @@ function RegistrationsAdmin({ isOwner, session }) {
                   <td className="p-3"><input type="checkbox" checked={selected.has(r.code)} onChange={() => toggleSelect(r.code)} /></td>
                   <td className="p-3 font-mono">{r.code}</td>
                   <EditableCell reg={r} field="tiktokId" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
+                  {channelFields.map((f) => <ExtraFieldCell key={f.id} reg={r} fieldId={f.id} editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />)}
                   <EditableCell reg={r} field="zaloPhone" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
                   <EditableCell reg={r} field="followers" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
                   <EditableCell reg={r} field="gmvNumber" editingCell={editingCell} setEditingCell={setEditingCell} updateReg={updateReg} />
@@ -679,6 +728,472 @@ function RegistrationsAdmin({ isOwner, session }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ---------------- SHARED: EXPORT FILTER UI ---------------- */
+
+function ChipMultiSelect({ options, selected, onChange }) {
+  const toggle = (v) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    onChange(next);
+  };
+  const allSelected = options.length > 0 && options.every((o) => selected.has(o.value));
+  const toggleAll = () => onChange(allSelected ? new Set() : new Set(options.map((o) => o.value)));
+  if (options.length === 0) return <div className="text-xs text-slate-300">Không có dữ liệu</div>;
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <button key={o.value} type="button" onClick={() => toggle(o.value)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${selected.has(o.value) ? "border-[#5B4CFF] bg-[#EEEDFE] text-[#3C3489]" : "border-[#E7E3DA] text-slate-500"}`}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <button type="button" onClick={toggleAll} className="text-[11px] text-[#5B4CFF] mt-1.5 hover:underline">
+        {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+      </button>
+    </div>
+  );
+}
+
+function ExportModalShell({ title, count, onClose, onExport, exportDisabled, children }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium flex items-center gap-2"><Download size={16} /> {title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <div className="space-y-4">{children}</div>
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-[#F1EFE8]">
+          <span className="text-xs text-slate-400">{count} dòng phù hợp</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-[#E7E3DA] text-sm">Huỷ</button>
+            <button onClick={onExport} disabled={exportDisabled} style={{ background: ACCENT }} className="text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-60">
+              <Download size={14} /> Xuất file
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExportFilterSection({ title, children }) {
+  return (
+    <div>
+      <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1.5">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+const SELECT_CLS = "border border-[#E7E3DA] rounded-lg px-2.5 py-1.5 text-xs bg-white";
+const DATE_CLS = "border border-[#E7E3DA] rounded-lg px-2.5 py-1.5 text-xs bg-white flex-1";
+
+/* ---------------- REGISTRATIONS: EXPORT MODAL ---------------- */
+
+function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
+  const showPaid = campaign?.status === "done" && campaign?.cost;
+  const distinctProducts = useMemo(() => Array.from(new Set(rows.map((r) => r.selectedProduct).filter(Boolean))), [rows]);
+
+  const [statusSel, setStatusSel] = useState(() =>
+    initialFilters?.status ? new Set([initialFilters.status]) : new Set(Object.keys(STATUS))
+  );
+  const [mail, setMail] = useState(initialFilters?.mail || "");
+  const [paid, setPaid] = useState(initialFilters?.paid || "");
+  const [productSel, setProductSel] = useState(() => {
+    if (initialFilters?.selectedProduct) {
+      const q = initialFilters.selectedProduct.toLowerCase();
+      const match = distinctProducts.filter((p) => p.toLowerCase().includes(q));
+      return new Set(match.length ? match : distinctProducts);
+    }
+    return new Set(distinctProducts);
+  });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const channelFields = useMemo(() => (typeof campaign?.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign?.channelFields || [])).filter((f) => f.label?.trim()), [campaign]);
+
+  const ALL_COLS = useMemo(() => [
+    { key: "code", label: "Mã ID", get: (r) => r.code },
+    { key: "status", label: "Trạng thái", get: (r) => STATUS[r.status]?.label },
+    { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
+    { key: "tiktokLink", label: "Link TikTok", get: (r) => r.tiktokLink },
+    ...channelFields.map((f) => ({ key: `extra:${f.id}`, label: f.label, get: (r) => (typeof r.extraFields === "string" ? JSON.parse(r.extraFields || "{}") : (r.extraFields || {}))[f.id] || "" })),
+    { key: "zaloPhone", label: "SĐT Zalo", get: (r) => r.zaloPhone },
+    { key: "address", label: "Địa chỉ", get: (r) => r.address },
+    { key: "email", label: "Email", get: (r) => r.email },
+    { key: "gmvNote", label: "Ảnh GMV", get: (r) => r.gmvNote },
+    { key: "gmvNumber", label: "Số liệu GMV", get: (r) => r.gmvNumber },
+    { key: "followers", label: "Follower", get: (r) => r.followers },
+    { key: "selectedProduct", label: "Sản phẩm chọn", get: (r) => r.selectedProduct },
+    { key: "allowReup", label: "Cho reup", get: (r) => r.allowReup },
+    { key: "aff5", label: "Aff 5%", get: (r) => r.aff5 },
+    { key: "video30days", label: "Video ≥30 ngày", get: (r) => r.video30days },
+    { key: "contentDesc", label: "Nội dung kênh", get: (r) => r.contentDesc },
+    { key: "createdAt", label: "Ngày đăng ký", get: (r) => fmtDate(r.createdAt) },
+    ...(showPaid ? [{ key: "paid", label: "Đã thanh toán", get: (r) => (r.paid === true ? "Đã chi" : r.paid === false ? "Chưa chi" : "") }] : []),
+  ], [showPaid, channelFields]);
+  const [colSel, setColSel] = useState(() => new Set(ALL_COLS.map((c) => c.key)));
+  const toggleCol = (k) => setColSel((prev) => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (!statusSel.has(r.status)) return false;
+    if (mail === "sent" && !r.mailSentAt) return false;
+    if (mail === "unsent" && r.mailSentAt) return false;
+    if (showPaid && paid === "paid" && r.paid !== true) return false;
+    if (showPaid && paid === "unpaid" && r.paid !== false) return false;
+    if (distinctProducts.length && productSel.size < distinctProducts.length) {
+      if (!r.selectedProduct || !productSel.has(r.selectedProduct)) return false;
+    }
+    if (dateFrom && (!r.createdAt || new Date(r.createdAt) < new Date(dateFrom))) return false;
+    if (dateTo && (!r.createdAt || new Date(r.createdAt) > new Date(dateTo + "T23:59:59"))) return false;
+    return true;
+  }), [rows, statusSel, mail, paid, showPaid, productSel, distinctProducts, dateFrom, dateTo]);
+
+  const doExport = () => {
+    const cols = ALL_COLS.filter((c) => colSel.has(c.key));
+    const data = filtered.map((r) => {
+      const obj = {};
+      cols.forEach((c) => { obj[c.label] = c.get(r) ?? ""; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Đơn đăng ký");
+    XLSX.writeFile(wb, `${campaign?.name || "campaign"}.xlsx`);
+    onClose();
+  };
+
+  return (
+    <ExportModalShell title="Xuất Excel theo bộ lọc" count={filtered.length} onClose={onClose} onExport={doExport} exportDisabled={colSel.size === 0 || filtered.length === 0}>
+      <ExportFilterSection title="Trạng thái">
+        <ChipMultiSelect options={Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))} selected={statusSel} onChange={setStatusSel} />
+      </ExportFilterSection>
+
+      <div className="grid grid-cols-2 gap-3">
+        <ExportFilterSection title="Mail">
+          <select value={mail} onChange={(e) => setMail(e.target.value)} className={SELECT_CLS + " w-full"}>
+            <option value="">Tất cả</option>
+            <option value="sent">Đã gửi</option>
+            <option value="unsent">Chưa gửi</option>
+          </select>
+        </ExportFilterSection>
+        {showPaid && (
+          <ExportFilterSection title="Thanh toán">
+            <select value={paid} onChange={(e) => setPaid(e.target.value)} className={SELECT_CLS + " w-full"}>
+              <option value="">Tất cả</option>
+              <option value="paid">Đã chi</option>
+              <option value="unpaid">Chưa chi</option>
+            </select>
+          </ExportFilterSection>
+        )}
+      </div>
+
+      {distinctProducts.length > 0 && (
+        <ExportFilterSection title="Sản phẩm chọn">
+          <ChipMultiSelect options={distinctProducts.map((p) => ({ value: p, label: p }))} selected={productSel} onChange={setProductSel} />
+        </ExportFilterSection>
+      )}
+
+      <ExportFilterSection title="Khoảng ngày đăng ký">
+        <div className="flex items-center gap-2">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={DATE_CLS} />
+          <span className="text-xs text-slate-400">đến</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={DATE_CLS} />
+        </div>
+      </ExportFilterSection>
+
+      <ExportFilterSection title="Cột muốn xuất">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {ALL_COLS.map((c) => (
+            <label key={c.key} className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={colSel.has(c.key)} onChange={() => toggleCol(c.key)} /> {c.label}
+            </label>
+          ))}
+        </div>
+      </ExportFilterSection>
+    </ExportModalShell>
+  );
+}
+
+/* ---------------- CAMPAIGN RESULTS (shipping / posting / video metrics / GMV) ---------------- */
+
+function ResultsAdmin({ isOwner, session }) {
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignId, setCampaignId] = useState("");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  useEffect(() => {
+    api("/api/admin/campaigns").then((d) => {
+      setCampaigns(d.campaigns);
+      setCampaignId(d.campaigns[0]?.id || "");
+      setLoading(false);
+    });
+  }, []);
+
+  const loadRows = useCallback(() => {
+    if (!campaignId) { setRows([]); return; }
+    api(`/api/admin/registrations?campaignId=${campaignId}`).then((d) => setRows(d.registrations));
+  }, [campaignId]);
+  useEffect(() => { loadRows(); }, [loadRows]);
+
+  const campaign = campaigns.find((c) => c.id === campaignId);
+  // Chỉ những đơn đã ĐƯỢC CHỌN mới thực sự thực thi campaign (gửi hàng / air bài)
+  const selectedRows = rows.filter((r) => r.status === "selected");
+  const rangedRows = selectedRows.filter((r) => {
+    const d = r.postDate || r.shipDate;
+    if (dateFrom && (!d || d < dateFrom)) return false;
+    if (dateTo && (!d || d > dateTo)) return false;
+    return true;
+  });
+
+  const updateReg = async (code, patch) => {
+    setRows((list) => list.map((r) => (r.code === code ? { ...r, ...patch } : r)));
+    await api(`/api/admin/registrations/${code}`, { method: "PATCH", body: JSON.stringify(patch) });
+  };
+
+  const num = (v) => Number(v) || 0;
+  const totals = rangedRows.reduce((acc, r) => ({
+    posted: acc.posted + (r.postLink ? 1 : 0),
+    views: acc.views + num(r.views),
+    gmv: acc.gmv + num(r.videoGmv),
+    orders: acc.orders + num(r.videoOrders),
+  }), { posted: 0, views: 0, gmv: 0, orders: 0 });
+
+  const goal = {
+    creators: num(campaign?.goalCreators), views: num(campaign?.goalViews),
+    gmv: num(campaign?.goalGmv), orders: num(campaign?.goalOrders),
+  };
+
+  if (loading) return null;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <select value={campaignId} onChange={(e) => setCampaignId(e.target.value)} className="border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm bg-white">
+          {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <div className="flex items-center gap-2">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-xs bg-white" />
+          <span className="text-xs text-slate-400">đến</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-[#E7E3DA] rounded-lg px-2.5 py-2 text-xs bg-white" />
+        </div>
+        <div className="flex-1" />
+        <button onClick={() => setShowExportModal(true)} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
+      </div>
+
+      {campaigns.length === 0 && <EmptyState text="Chưa có campaign nào." />}
+
+      {campaign && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <GoalStat icon={Users} label="KOC đã air bài" value={totals.posted} goal={goal.creators} />
+          <GoalStat icon={Eye} label="Tổng view" value={totals.views} goal={goal.views} />
+          <GoalStat icon={DollarSign} label="GMV" value={totals.gmv} goal={goal.gmv} />
+          <GoalStat icon={ClipboardList} label="Số đơn hàng" value={totals.orders} goal={goal.orders} />
+        </div>
+      )}
+
+      {campaigns.length > 0 && selectedRows.length === 0 && <EmptyState text="Chưa có KOC nào được chọn trong campaign này." />}
+      {selectedRows.length > 0 && rangedRows.length === 0 && <EmptyState text="Không có dòng nào trong khoảng ngày đã chọn." />}
+
+      {rangedRows.length > 0 && (
+        <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
+          <table className="w-full text-sm min-w-[1400px]">
+            <thead>
+              <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
+                <th className="p-3">TikTok</th>
+                <th className="p-3"><Truck size={12} className="inline mr-1" />Gửi hàng</th>
+                <th className="p-3">Ngày gửi</th>
+                <th className="p-3"><Video size={12} className="inline mr-1" />Link air bài</th>
+                <th className="p-3">Ngày air</th>
+                <th className="p-3"><Eye size={12} className="inline mr-1" />View</th>
+                <th className="p-3"><Heart size={12} className="inline mr-1" />Like</th>
+                <th className="p-3"><MessageCircle size={12} className="inline mr-1" />Cmt</th>
+                <th className="p-3"><Share2 size={12} className="inline mr-1" />Share</th>
+                <th className="p-3">GMV</th>
+                <th className="p-3">Đơn hàng</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rangedRows.map((r) => (
+                <tr key={r.code} className="border-b border-[#F1EFE8] last:border-0 align-top">
+                  <td className="p-3">
+                    <div className="font-medium">{r.tiktokId || "—"}</div>
+                    {r.tiktokLink && <a href={r.tiktokLink} target="_blank" rel="noreferrer" className="text-[11px] text-[#5B4CFF] flex items-center gap-0.5">Trang cá nhân <ExternalLink size={10} /></a>}
+                  </td>
+                  <td className="p-2">
+                    <select value={r.shipStatus || ""} onChange={(e) => updateReg(r.code, { shipStatus: e.target.value })} className="w-full border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                      <option value="">Chưa gửi</option>
+                      <option value="shipped">Đã gửi</option>
+                      <option value="delivered">Đã nhận hàng</option>
+                    </select>
+                  </td>
+                  <td className="p-2"><input type="date" value={r.shipDate || ""} onChange={(e) => updateReg(r.code, { shipDate: e.target.value })} className="border border-[#E7E3DA] rounded px-1.5 py-1 text-xs w-full" /></td>
+                  <td className="p-2" style={{ minWidth: 210 }}>
+                    <div className="flex items-center gap-1">
+                      <input type="text" placeholder="Dán link video..." defaultValue={r.postLink || ""}
+                        onBlur={(e) => e.target.value.trim() !== (r.postLink || "") && updateReg(r.code, { postLink: e.target.value.trim() })}
+                        className="border border-[#E7E3DA] rounded px-1.5 py-1 text-xs flex-1" />
+                      {r.postLink && <a href={r.postLink} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[#5B4CFF]"><ExternalLink size={13} /></a>}
+                    </div>
+                  </td>
+                  <td className="p-2"><input type="date" value={r.postDate || ""} onChange={(e) => updateReg(r.code, { postDate: e.target.value })} className="border border-[#E7E3DA] rounded px-1.5 py-1 text-xs w-full" /></td>
+                  <NumCell reg={r} field="views" updateReg={updateReg} />
+                  <NumCell reg={r} field="likes" updateReg={updateReg} />
+                  <NumCell reg={r} field="comments" updateReg={updateReg} />
+                  <NumCell reg={r} field="shares" updateReg={updateReg} />
+                  <NumCell reg={r} field="videoGmv" updateReg={updateReg} />
+                  <NumCell reg={r} field="videoOrders" updateReg={updateReg} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showExportModal && (
+        <ResultsExportModal rows={rows} campaign={campaign} onClose={() => setShowExportModal(false)} />
+      )}
+    </div>
+  );
+}
+
+function NumCell({ reg, field, updateReg }) {
+  const [val, setVal] = useState(reg[field] ?? "");
+  useEffect(() => { setVal(reg[field] ?? ""); }, [reg[field]]);
+  return (
+    <td className="p-2">
+      <input type="number" min="0" value={val} onChange={(e) => setVal(e.target.value)}
+        onBlur={() => { if (String(val) !== String(reg[field] ?? "")) updateReg(reg.code, { [field]: val }); }}
+        className="border border-[#E7E3DA] rounded px-1.5 py-1 text-xs w-20" />
+    </td>
+  );
+}
+
+function GoalStat({ icon: Icon, label, value, goal }) {
+  const pct = goal > 0 ? Math.min(100, Math.round((value / goal) * 100)) : null;
+  const fmt = (n) => Number(n || 0).toLocaleString("vi-VN");
+  return (
+    <div className="bg-white border border-[#E7E3DA] rounded-xl p-3.5">
+      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1.5"><Icon size={13} /> {label}</div>
+      <div className="text-lg font-medium">{fmt(value)}{goal > 0 && <span className="text-xs text-slate-400 font-normal"> / {fmt(goal)}</span>}</div>
+      {pct !== null && (
+        <div className="mt-2">
+          <div className="h-1.5 rounded-full bg-[#F1EFE8] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? "#0F766E" : ACCENT }} />
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">{pct}% mục tiêu</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultsExportModal({ rows, campaign, onClose }) {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [shipSel, setShipSel] = useState(() => new Set(["", "shipped", "delivered"]));
+  const [onlyPosted, setOnlyPosted] = useState(false);
+
+  const ALL_COLS = useMemo(() => [
+    { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
+    { key: "shipStatus", label: "Trạng thái gửi hàng", get: (r) => (r.shipStatus === "delivered" ? "Đã nhận hàng" : r.shipStatus === "shipped" ? "Đã gửi" : "Chưa gửi") },
+    { key: "shipDate", label: "Ngày gửi", get: (r) => r.shipDate || "" },
+    { key: "postLink", label: "Link air bài", get: (r) => r.postLink || "" },
+    { key: "postDate", label: "Ngày air", get: (r) => r.postDate || "" },
+    { key: "views", label: "View", get: (r) => r.views || 0 },
+    { key: "likes", label: "Like", get: (r) => r.likes || 0 },
+    { key: "comments", label: "Comment", get: (r) => r.comments || 0 },
+    { key: "shares", label: "Share", get: (r) => r.shares || 0 },
+    { key: "videoGmv", label: "GMV", get: (r) => r.videoGmv || 0 },
+    { key: "videoOrders", label: "Số đơn hàng", get: (r) => r.videoOrders || 0 },
+  ], []);
+  const [colSel, setColSel] = useState(() => new Set(ALL_COLS.map((c) => c.key)));
+  const toggleCol = (k) => setColSel((prev) => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const filtered = useMemo(() => rows.filter((r) => {
+    if (r.status !== "selected") return false;
+    if (onlyPosted && !r.postLink) return false;
+    if (!shipSel.has(r.shipStatus || "")) return false;
+    const d = r.postDate || r.shipDate;
+    if (dateFrom && (!d || d < dateFrom)) return false;
+    if (dateTo && (!d || d > dateTo)) return false;
+    return true;
+  }), [rows, onlyPosted, shipSel, dateFrom, dateTo]);
+
+  const doExport = () => {
+    const cols = ALL_COLS.filter((c) => colSel.has(c.key));
+    const data = filtered.map((r) => {
+      const obj = {};
+      cols.forEach((c) => { obj[c.label] = c.get(r) ?? ""; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kết quả campaign");
+    XLSX.writeFile(wb, `${campaign?.name || "campaign"}_ket_qua.xlsx`);
+    onClose();
+  };
+
+  return (
+    <ExportModalShell title="Xuất kết quả theo bộ lọc" count={filtered.length} onClose={onClose} onExport={doExport} exportDisabled={colSel.size === 0 || filtered.length === 0}>
+      <ExportFilterSection title="Trạng thái gửi hàng">
+        <ChipMultiSelect options={[{ value: "", label: "Chưa gửi" }, { value: "shipped", label: "Đã gửi" }, { value: "delivered", label: "Đã nhận hàng" }]} selected={shipSel} onChange={setShipSel} />
+      </ExportFilterSection>
+
+      <ExportFilterSection title="Khoảng ngày air bài / gửi hàng">
+        <div className="flex items-center gap-2">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={DATE_CLS} />
+          <span className="text-xs text-slate-400">đến</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={DATE_CLS} />
+        </div>
+      </ExportFilterSection>
+
+      <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+        <input type="checkbox" checked={onlyPosted} onChange={(e) => setOnlyPosted(e.target.checked)} /> Chỉ lấy video đã có link air bài
+      </label>
+
+      <ExportFilterSection title="Cột muốn xuất">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {ALL_COLS.map((c) => (
+            <label key={c.key} className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={colSel.has(c.key)} onChange={() => toggleCol(c.key)} /> {c.label}
+            </label>
+          ))}
+        </div>
+      </ExportFilterSection>
+    </ExportModalShell>
+  );
+}
+
+function ExtraFieldCell({ reg, fieldId, editingCell, setEditingCell, updateReg }) {
+  const cellKey = `extra:${fieldId}`;
+  const isEditing = editingCell?.code === reg.code && editingCell?.field === cellKey;
+  const extra = typeof reg.extraFields === "string" ? JSON.parse(reg.extraFields || "{}") : (reg.extraFields || {});
+  const [val, setVal] = useState(extra[fieldId] || "");
+  const commit = () => { updateReg(reg.code, { extraFields: JSON.stringify({ ...extra, [fieldId]: val }) }); setEditingCell(null); };
+  if (isEditing) {
+    return (
+      <td className="p-2">
+        <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+          className="w-full border border-[#5B4CFF] rounded px-2 py-1 text-sm" />
+      </td>
+    );
+  }
+  return (
+    <td className="p-3 cursor-text hover:bg-[#FAF9F6]" onClick={() => { setVal(extra[fieldId] || ""); setEditingCell({ code: reg.code, field: cellKey }); }}>
+      {extra[fieldId] || <span className="text-slate-300">—</span>}
+    </td>
   );
 }
 
@@ -805,6 +1320,7 @@ function AggregateAdmin() {
   const [editingCell, setEditingCell] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const loadRows = useCallback(() => {
     return Promise.all([api("/api/admin/registrations?all=1"), api("/api/admin/campaigns")])
@@ -857,19 +1373,6 @@ function AggregateAdmin() {
     setRows((list) => list.filter((r) => !m.campaignsList.some((c) => c.code === r.code)));
   };
 
-  const exportExcel = () => {
-    const data = filtered.map((m) => ({
-      "ID TikTok": m.tiktokId, "SĐT Zalo": m.zaloPhone, "Email": m.email, "Follower": m.followers,
-      "Ngày đăng ký gần nhất": fmtDate(latestDate(m)),
-      "Campaign đã đăng ký": m.campaignsList.map((c) => campaigns.find((cc) => cc.id === c.id)?.name).filter(Boolean).join(", "),
-      "Số campaign": m.campaignsList.length,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Tổng hợp");
-    XLSX.writeFile(wb, "tong_hop_ugc.xlsx");
-  };
-
   if (loading) return null;
   if (err) return <EmptyState text={err} />;
 
@@ -882,8 +1385,19 @@ function AggregateAdmin() {
         </select>
         <div className="flex-1" />
         {hasActiveFilters && <button onClick={clearFilters} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] text-slate-500 hover:border-red-300 hover:text-red-500 flex items-center gap-1.5"><X size={14} /> Xoá bộ lọc</button>}
-        <button onClick={exportExcel} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
+        <button onClick={() => setShowExportModal(true)} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
       </div>
+
+      {showExportModal && (
+        <AggregateExportModal
+          merged={merged}
+          campaigns={campaigns}
+          latestDate={latestDate}
+          initialFilters={filters}
+          initialCampaignFilter={campaignFilter}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
 
       {merged.length === 0 && <EmptyState text="Chưa có dữ liệu." />}
       {merged.length > 0 && filtered.length === 0 && <EmptyState text="Không có ai khớp với bộ lọc." />}
@@ -943,6 +1457,192 @@ function AggregateAdmin() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- AGGREGATE: EXPORT MODAL ---------------- */
+
+function AggregateExportModal({ merged, campaigns, latestDate, initialFilters, initialCampaignFilter, onClose }) {
+  const [statusSel, setStatusSel] = useState(() =>
+    initialFilters?.status ? new Set([initialFilters.status]) : new Set(Object.keys(STATUS))
+  );
+  const [mail, setMail] = useState(initialFilters?.mail || "");
+  const [campaignSel, setCampaignSel] = useState(() =>
+    initialCampaignFilter ? new Set([initialCampaignFilter]) : new Set(campaigns.map((c) => c.id))
+  );
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const ALL_COLS = useMemo(() => [
+    { key: "tiktokId", label: "ID TikTok", get: (m) => m.tiktokId },
+    { key: "zaloPhone", label: "SĐT Zalo", get: (m) => m.zaloPhone },
+    { key: "email", label: "Email", get: (m) => m.email },
+    { key: "followers", label: "Follower", get: (m) => m.followers },
+    { key: "latestDate", label: "Ngày đăng ký gần nhất", get: (m) => fmtDate(latestDate(m)) },
+    { key: "campaignsList", label: "Campaign đã đăng ký", get: (m) => m.campaignsList.map((c) => campaigns.find((cc) => cc.id === c.id)?.name).filter(Boolean).join(", ") },
+    { key: "count", label: "Số campaign", get: (m) => m.campaignsList.length },
+  ], [campaigns, latestDate]);
+  const [colSel, setColSel] = useState(() => new Set(ALL_COLS.map((c) => c.key)));
+  const toggleCol = (k) => setColSel((prev) => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const filtered = useMemo(() => merged.filter((m) => {
+    if (!m.campaignsList.some((c) => statusSel.has(c.status))) return false;
+    if (mail === "sent" && !m.campaignsList.some((c) => c.mailSentAt)) return false;
+    if (mail === "unsent" && m.campaignsList.some((c) => c.mailSentAt)) return false;
+    if (campaignSel.size < campaigns.length && !m.campaignsList.some((c) => campaignSel.has(c.id))) return false;
+    const ld = latestDate(m);
+    if (dateFrom && (!ld || new Date(ld) < new Date(dateFrom))) return false;
+    if (dateTo && (!ld || new Date(ld) > new Date(dateTo + "T23:59:59"))) return false;
+    return true;
+  }), [merged, statusSel, mail, campaignSel, campaigns.length, dateFrom, dateTo, latestDate]);
+
+  const doExport = () => {
+    const cols = ALL_COLS.filter((c) => colSel.has(c.key));
+    const data = filtered.map((m) => {
+      const obj = {};
+      cols.forEach((c) => { obj[c.label] = c.get(m) ?? ""; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tổng hợp");
+    XLSX.writeFile(wb, "tong_hop_ugc.xlsx");
+    onClose();
+  };
+
+  return (
+    <ExportModalShell title="Xuất Excel theo bộ lọc" count={filtered.length} onClose={onClose} onExport={doExport} exportDisabled={colSel.size === 0 || filtered.length === 0}>
+      <ExportFilterSection title="Trạng thái">
+        <ChipMultiSelect options={Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))} selected={statusSel} onChange={setStatusSel} />
+      </ExportFilterSection>
+
+      <ExportFilterSection title="Mail">
+        <select value={mail} onChange={(e) => setMail(e.target.value)} className={SELECT_CLS}>
+          <option value="">Tất cả</option>
+          <option value="sent">Đã gửi</option>
+          <option value="unsent">Chưa gửi</option>
+        </select>
+      </ExportFilterSection>
+
+      {campaigns.length > 0 && (
+        <ExportFilterSection title="Campaign">
+          <ChipMultiSelect options={campaigns.map((c) => ({ value: c.id, label: c.name }))} selected={campaignSel} onChange={setCampaignSel} />
+        </ExportFilterSection>
+      )}
+
+      <ExportFilterSection title="Khoảng ngày đăng ký gần nhất">
+        <div className="flex items-center gap-2">
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={DATE_CLS} />
+          <span className="text-xs text-slate-400">đến</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={DATE_CLS} />
+        </div>
+      </ExportFilterSection>
+
+      <ExportFilterSection title="Cột muốn xuất">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {ALL_COLS.map((c) => (
+            <label key={c.key} className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={colSel.has(c.key)} onChange={() => toggleCol(c.key)} /> {c.label}
+            </label>
+          ))}
+        </div>
+      </ExportFilterSection>
+    </ExportModalShell>
+  );
+}
+
+/* ---------------- KOC CHECK (kiểm tra hàng loạt: đã hoàn thành hay còn nợ campaign khác) ---------------- */
+
+function KocCheckAdmin() {
+  const [merged, setMerged] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [input, setInput] = useState("");
+  const [results, setResults] = useState(null);
+
+  useEffect(() => {
+    Promise.all([api("/api/admin/registrations?all=1"), api("/api/admin/campaigns")]).then(([r, c]) => {
+      const map = new Map();
+      r.registrations.forEach((reg) => {
+        const key = (reg.tiktokId || reg.zaloPhone || reg.code).toLowerCase();
+        if (!map.has(key)) map.set(key, { tiktokId: reg.tiktokId, zaloPhone: reg.zaloPhone, entries: [] });
+        map.get(key).entries.push(reg);
+      });
+      setMerged(Array.from(map.values()));
+      setCampaigns(c.campaigns);
+      setLoading(false);
+    });
+  }, []);
+
+  // Chỉ tính "nợ" khi đã được CHỌN tham gia campaign nhưng chưa có link air bài
+  const fulfillmentOf = (reg) => {
+    if (reg.status !== "selected") return null;
+    return reg.postLink ? "done" : "owing";
+  };
+
+  const check = () => {
+    const queries = input.split("\n").map((s) => s.trim()).filter(Boolean);
+    const out = queries.map((q) => {
+      const ql = q.toLowerCase();
+      const person = merged.find((m) =>
+        (m.tiktokId && m.tiktokId.toLowerCase() === ql) ||
+        (m.zaloPhone && m.zaloPhone.toLowerCase() === ql) ||
+        (m.tiktokId && m.tiktokId.toLowerCase().includes(ql))
+      );
+      if (!person) return { query: q, found: false };
+      const campaignsInfo = person.entries.map((e) => ({
+        campaignName: campaigns.find((c) => c.id === e.campaignId)?.name || "—",
+        status: e.status,
+        fulfillment: fulfillmentOf(e),
+      }));
+      const owingCount = campaignsInfo.filter((ci) => ci.fulfillment === "owing").length;
+      return { query: q, found: true, tiktokId: person.tiktokId, zaloPhone: person.zaloPhone, campaignsInfo, owingCount };
+    });
+    setResults(out);
+  };
+
+  if (loading) return null;
+
+  return (
+    <div>
+      <div className="mb-5">
+        <FieldLabel>Dán danh sách ID TikTok hoặc SĐT Zalo (mỗi người 1 dòng) để kiểm tra hàng loạt</FieldLabel>
+        <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={5}
+          placeholder={"vd:\n@tiktokid1\n0901234567\n@tiktokid2"}
+          className="w-full border border-[#E7E3DA] rounded-lg px-3 py-2 text-sm font-mono bg-white" />
+        <button onClick={check} disabled={!input.trim()} style={{ background: ACCENT }} className="mt-2 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-1.5 disabled:opacity-60">
+          <Search size={14} /> Kiểm tra
+        </button>
+      </div>
+
+      {results && (
+        <div className="space-y-3">
+          {results.map((r, i) => (
+            <div key={i} className="bg-white border border-[#E7E3DA] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <div className="font-medium text-sm">{r.query}</div>
+                {!r.found && <span className="text-xs text-slate-400">Không tìm thấy trong hệ thống</span>}
+                {r.found && r.owingCount > 0 && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#FCEBEB] text-[#A32D2D] flex items-center gap-1"><AlertTriangle size={11} /> Còn nợ {r.owingCount} campaign</span>
+                )}
+                {r.found && r.owingCount === 0 && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#CCFBF1] text-[#0F766E] flex items-center gap-1"><CheckCircle2 size={11} /> Không nợ campaign nào</span>
+                )}
+              </div>
+              {r.found && (
+                <div className="flex flex-wrap gap-1.5">
+                  {r.campaignsInfo.map((ci, idx) => (
+                    <span key={idx} className={`text-[11px] px-2 py-1 rounded-full ${ci.fulfillment === "owing" ? "bg-[#FCEBEB] text-[#A32D2D]" : ci.fulfillment === "done" ? "bg-[#CCFBF1] text-[#0F766E]" : "bg-[#F1F5F9] text-slate-500"}`}>
+                      {ci.campaignName} · {ci.fulfillment === "owing" ? "Còn nợ (chưa air bài)" : ci.fulfillment === "done" ? "Đã hoàn thành" : STATUS[ci.status]?.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

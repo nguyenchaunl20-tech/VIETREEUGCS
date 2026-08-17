@@ -140,3 +140,28 @@ export function ProductOptionsEditor({ options, onChange }) {
     </div>
   );
 }
+
+// Cho phép admin khai báo thêm các trường thông tin kênh SNS khác (Instagram, Facebook,
+// YouTube...) riêng cho từng campaign, ngoài ID/Link TikTok mặc định.
+export function ChannelFieldsEditor({ fields, onChange }) {
+  const add = () => onChange([...fields, { id: Math.random().toString(36).slice(2, 8), label: "", placeholder: "", required: false }]);
+  const update = (id, patch) => onChange(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  const remove = (id) => onChange(fields.filter((f) => f.id !== id));
+  return (
+    <div className="space-y-2">
+      {fields.map((f) => (
+        <div key={f.id} className="flex gap-2 items-center">
+          <input value={f.label} onChange={(e) => update(f.id, { label: e.target.value })} placeholder="Tên trường, VD: ID Instagram"
+            className="w-40 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <input value={f.placeholder} onChange={(e) => update(f.id, { placeholder: e.target.value })} placeholder="Placeholder gợi ý (không bắt buộc)"
+            className="flex-1 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <label className="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap">
+            <input type="checkbox" checked={!!f.required} onChange={(e) => update(f.id, { required: e.target.checked })} /> Bắt buộc
+          </label>
+          <button type="button" onClick={() => remove(f.id)} className="text-slate-400 hover:text-red-500">✕</button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className="text-sm text-[#5B4CFF]">+ Thêm trường kênh SNS</button>
+    </div>
+  );
+}
