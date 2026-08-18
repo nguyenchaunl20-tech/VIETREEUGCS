@@ -794,6 +794,72 @@ function ExportFilterSection({ title, children }) {
 const SELECT_CLS = "border border-[#E7E3DA] rounded-lg px-2.5 py-1.5 text-xs bg-white";
 const DATE_CLS = "border border-[#E7E3DA] rounded-lg px-2.5 py-1.5 text-xs bg-white flex-1";
 
+/* ---------------- IMPORT EXCEL: PREVIEW DÒNG TRÙNG TRƯỚC KHI LƯU ---------------- */
+// Dùng chung cho các tab có nút "Nhập Excel". Mỗi dòng import được so khớp với dữ liệu
+// hiện có; nếu đã tồn tại (trùng) thì liệt kê rõ giá trị cũ -> mới để admin xác nhận,
+// tránh việc lỡ upload lại file cũ đè mất số liệu mới hơn.
+function ImportPreviewModal({ title, diffs, applying, onConfirm, onClose }) {
+  const toUpdate = diffs.filter((d) => d.found && d.changes.length > 0);
+  const unchanged = diffs.filter((d) => d.found && d.changes.length === 0);
+  const notFound = diffs.filter((d) => !d.found);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && !applying && onClose()}>
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium flex items-center gap-2"><Upload size={16} /> {title}</h3>
+          {!applying && <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>}
+        </div>
+
+        {diffs.length === 0 && <EmptyState text="Không đọc được dòng nào hợp lệ từ file." />}
+
+        {toUpdate.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-medium text-amber-600 mb-2 flex items-center gap-1.5">
+              <AlertTriangle size={13} /> {toUpdate.length} dòng đã có sẵn trong hệ thống (trùng) — sẽ được CẬP NHẬT, ghi đè giá trị cũ:
+            </div>
+            <div className="border border-[#E7E3DA] rounded-lg divide-y divide-[#F1EFE8] max-h-64 overflow-y-auto">
+              {toUpdate.map((d, i) => (
+                <div key={i} className="p-2.5 text-xs">
+                  <div className="font-medium mb-1">{d.label}</div>
+                  {d.changes.map((c, j) => (
+                    <div key={j} className="text-slate-500 flex items-center gap-1 flex-wrap">
+                      <span className="text-slate-400">{c.label}:</span>
+                      <span className="line-through text-slate-300">{String(c.oldVal || "—")}</span>
+                      <span>→</span>
+                      <span className="text-[#5B4CFF] font-medium">{String(c.newVal || "—")}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {unchanged.length > 0 && (
+          <div className="text-xs text-slate-400 mb-2">{unchanged.length} dòng không có gì thay đổi so với dữ liệu hiện tại — sẽ bỏ qua.</div>
+        )}
+
+        {notFound.length > 0 && (
+          <div className="text-xs text-red-400 mb-2">
+            {notFound.length} dòng không khớp với dữ liệu hiện có (sai mã / đã bị xoá) — sẽ bỏ qua: {notFound.map((d) => d.label).join(", ")}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-[#F1EFE8]">
+          <span className="text-xs text-slate-400">{toUpdate.length} dòng sẽ được cập nhật</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} disabled={applying} className="px-4 py-2 rounded-lg border border-[#E7E3DA] text-sm disabled:opacity-60">Huỷ</button>
+            <button onClick={onConfirm} disabled={applying || toUpdate.length === 0} style={{ background: ACCENT }} className="text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-60">
+              {applying ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Xác nhận cập nhật
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- REGISTRATIONS: EXPORT MODAL ---------------- */
 
 function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
@@ -931,6 +997,8 @@ function ResultsAdmin({ isOwner, session }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     api("/api/admin/campaigns").then((d) => {
@@ -945,6 +1013,60 @@ function ResultsAdmin({ isOwner, session }) {
     api(`/api/admin/registrations?campaignId=${campaignId}`).then((d) => setRows(d.registrations));
   }, [campaignId]);
   useEffect(() => { loadRows(); }, [loadRows]);
+
+  // So khớp bằng "Mã ID" — chỉ đọc & chuẩn bị diff, KHÔNG lưu ngay. Admin xem preview
+  // các dòng trùng (đã có sẵn) rồi mới bấm xác nhận, để không lỡ upload lại file cũ đè số liệu mới.
+  const RESULT_FIELD_DEFS = [
+    { header: "Trạng thái gửi hàng", key: "shipStatus", parse: (v) => (v === "Đã nhận hàng" ? "delivered" : v === "Đã gửi" ? "shipped" : "") },
+    { header: "Ngày gửi", key: "shipDate" },
+    { header: "Link air bài", key: "postLink" },
+    { header: "Ngày air", key: "postDate" },
+    { header: "View", key: "views" },
+    { header: "Like", key: "likes" },
+    { header: "Comment", key: "comments" },
+    { header: "Share", key: "shares" },
+    { header: "GMV", key: "videoGmv" },
+    { header: "Số đơn hàng", key: "videoOrders" },
+  ];
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const wb = XLSX.read(evt.target.result, { type: "array" });
+      const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      const diffs = json.map((row) => {
+        const code = row["Mã ID"];
+        if (!code) return null;
+        const existing = rows.find((r) => r.code === code);
+        if (!existing) return { label: `Mã ${code}`, found: false, changes: [] };
+        const changes = [];
+        RESULT_FIELD_DEFS.forEach(({ header, key, parse }) => {
+          if (!(header in row)) return;
+          const newVal = parse ? parse(row[header]) : (row[header] ?? "");
+          const oldVal = existing[key] ?? "";
+          if (String(newVal) !== String(oldVal)) changes.push({ key, label: header, oldVal, newVal });
+        });
+        return { label: `${existing.tiktokId || code} (${code})`, code, found: true, changes };
+      }).filter(Boolean);
+      setImportPreview(diffs);
+      e.target.value = "";
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = async () => {
+    setImporting(true);
+    const toApply = importPreview.filter((d) => d.found && d.changes.length > 0);
+    for (const d of toApply) {
+      const patch = {};
+      d.changes.forEach((c) => { patch[c.key] = c.newVal; });
+      await updateReg(d.code, patch);
+    }
+    setImporting(false);
+    setImportPreview(null);
+  };
 
   const campaign = campaigns.find((c) => c.id === campaignId);
   // Chỉ những đơn đã ĐƯỢC CHỌN mới thực sự thực thi campaign (gửi hàng / air bài)
@@ -989,7 +1111,21 @@ function ResultsAdmin({ isOwner, session }) {
         </div>
         <div className="flex-1" />
         <button onClick={() => setShowExportModal(true)} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
+        <label className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF] cursor-pointer">
+          <Upload size={14} /> Nhập Excel
+          <input type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
+        </label>
       </div>
+
+      {importPreview && (
+        <ImportPreviewModal
+          title="Xem trước dữ liệu nhập vào — Kết quả campaign"
+          diffs={importPreview}
+          applying={importing}
+          onConfirm={confirmImport}
+          onClose={() => setImportPreview(null)}
+        />
+      )}
 
       {campaigns.length === 0 && <EmptyState text="Chưa có campaign nào." />}
 
@@ -1104,6 +1240,8 @@ function ResultsExportModal({ rows, campaign, onClose }) {
   const [shipSel, setShipSel] = useState(() => new Set(["", "shipped", "delivered"]));
   const [onlyPosted, setOnlyPosted] = useState(false);
 
+  // "Mã ID" luôn được xuất kèm (không cho tắt) để làm khoá so khớp khi Nhập Excel lại sau này.
+  const CODE_COL = { key: "code", label: "Mã ID", get: (r) => r.code };
   const ALL_COLS = useMemo(() => [
     { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
     { key: "shipStatus", label: "Trạng thái gửi hàng", get: (r) => (r.shipStatus === "delivered" ? "Đã nhận hàng" : r.shipStatus === "shipped" ? "Đã gửi" : "Chưa gửi") },
@@ -1131,7 +1269,7 @@ function ResultsExportModal({ rows, campaign, onClose }) {
   }), [rows, onlyPosted, shipSel, dateFrom, dateTo]);
 
   const doExport = () => {
-    const cols = ALL_COLS.filter((c) => colSel.has(c.key));
+    const cols = [CODE_COL, ...ALL_COLS.filter((c) => colSel.has(c.key))];
     const data = filtered.map((r) => {
       const obj = {};
       cols.forEach((c) => { obj[c.label] = c.get(r) ?? ""; });
@@ -1321,6 +1459,8 @@ function AggregateAdmin() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   const loadRows = useCallback(() => {
     return Promise.all([api("/api/admin/registrations?all=1"), api("/api/admin/campaigns")])
@@ -1357,6 +1497,58 @@ function AggregateAdmin() {
     await api(`/api/admin/registrations/${code}`, { method: "PATCH", body: JSON.stringify(patch) });
   };
 
+  // So khớp theo "ID TikTok" (ưu tiên) hoặc "SĐT Zalo" — vì bảng Tổng hợp gộp theo người,
+  // không có cột Mã ID riêng. Chỉ preview & chờ xác nhận trước khi lưu, giống tab Kết quả.
+  const AGG_FIELD_DEFS = [
+    { header: "SĐT Zalo", key: "zaloPhone" },
+    { header: "Email", key: "email" },
+    { header: "Follower", key: "followers" },
+  ];
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const wb = XLSX.read(evt.target.result, { type: "array" });
+      const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      const diffs = json.map((row) => {
+        const tiktok = (row["ID TikTok"] || "").toString().trim();
+        const zalo = (row["SĐT Zalo"] || "").toString().trim();
+        if (!tiktok && !zalo) return null;
+        const existing = merged.find((m) =>
+          (tiktok && m.tiktokId && m.tiktokId.toLowerCase() === tiktok.toLowerCase()) ||
+          (!tiktok && zalo && m.zaloPhone && m.zaloPhone.toLowerCase() === zalo.toLowerCase())
+        );
+        const label = tiktok || zalo;
+        if (!existing) return { label, found: false, changes: [] };
+        const changes = [];
+        AGG_FIELD_DEFS.forEach(({ header, key }) => {
+          if (!(header in row)) return;
+          const newVal = row[header] ?? "";
+          const oldVal = existing[key] ?? "";
+          if (String(newVal) !== String(oldVal)) changes.push({ key, label: header, oldVal, newVal });
+        });
+        return { label, code: existing.code, found: true, changes };
+      }).filter(Boolean);
+      setImportPreview(diffs);
+      e.target.value = "";
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = async () => {
+    setImporting(true);
+    const toApply = importPreview.filter((d) => d.found && d.changes.length > 0);
+    for (const d of toApply) {
+      const patch = {};
+      d.changes.forEach((c) => { patch[c.key] = c.newVal; });
+      await updateReg(d.code, patch);
+    }
+    setImporting(false);
+    setImportPreview(null);
+  };
+
   // Xoá 1 lượt đăng ký (1 campaign) của người đó
   const removeOne = async (code) => {
     if (!confirm("Bỏ đăng ký campaign này khỏi người này?")) return;
@@ -1386,6 +1578,10 @@ function AggregateAdmin() {
         <div className="flex-1" />
         {hasActiveFilters && <button onClick={clearFilters} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] text-slate-500 hover:border-red-300 hover:text-red-500 flex items-center gap-1.5"><X size={14} /> Xoá bộ lọc</button>}
         <button onClick={() => setShowExportModal(true)} className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF]"><Download size={14} /> Xuất Excel</button>
+        <label className="text-sm px-3 py-2 rounded-lg border border-[#E7E3DA] flex items-center gap-1.5 hover:border-[#5B4CFF] cursor-pointer">
+          <Upload size={14} /> Nhập Excel
+          <input type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
+        </label>
       </div>
 
       {showExportModal && (
@@ -1396,6 +1592,16 @@ function AggregateAdmin() {
           initialFilters={filters}
           initialCampaignFilter={campaignFilter}
           onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {importPreview && (
+        <ImportPreviewModal
+          title="Xem trước dữ liệu nhập vào — Tổng hợp"
+          diffs={importPreview}
+          applying={importing}
+          onConfirm={confirmImport}
+          onClose={() => setImportPreview(null)}
         />
       )}
 
