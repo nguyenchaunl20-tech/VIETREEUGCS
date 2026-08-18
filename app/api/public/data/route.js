@@ -27,6 +27,8 @@ export async function GET() {
     productOptions: c.productOptions,
     imageUrl: c.imageUrl || "",
     status: c.status,
+    requireTiktok: c.requireTiktok,
+    channelFields: c.channelFields,
   }));
 
   return NextResponse.json({
