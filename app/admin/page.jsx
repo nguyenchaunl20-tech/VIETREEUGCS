@@ -580,6 +580,33 @@ function RegistrationsAdmin({ isOwner, session }) {
     await api(`/api/admin/registrations/${code}`, { method: "PATCH", body: JSON.stringify(patch) });
   };
 
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const pendingApprove = useMemo(() => rows.filter((r) => r.aiSuggestion === "approve" && r.status !== "selected"), [rows]);
+
+  // Đổi trạng thái nhiều đơn cùng lúc, xong hỏi có muốn xuất Excel danh sách đã chọn luôn không
+  const bulkSetStatus = async (codes, status, confirmText) => {
+    if (!codes.length || bulkBusy) return;
+    if (!confirm(confirmText)) return;
+    setBulkBusy(true);
+    try {
+      const res = await api("/api/admin/registrations/bulk", {
+        method: "POST",
+        body: JSON.stringify({ campaignId, codes, status }),
+      });
+      const done = new Set(res.codes || []);
+      setRows((list) => list.map((r) => (done.has(r.code) ? { ...r, status } : r)));
+      setSelected(new Set());
+      if (status === "selected" && done.size > 0 && confirm(`Đã chọn ${done.size} đơn. Xuất Excel danh sách "Đã chọn" luôn không?`)) {
+        setFilters((f) => ({ ...f, status: "selected", ai: "" }));
+        setShowExportModal(true);
+      }
+    } catch (e) {
+      alert("Không cập nhật được: " + (e?.message || "lỗi không xác định"));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const removeReg = async (code) => {
     if (!confirm("Xoá đơn đăng ký này? Không thể hoàn tác.")) return;
     await api(`/api/admin/registrations/${code}`, { method: "DELETE" });
@@ -622,6 +649,14 @@ function RegistrationsAdmin({ isOwner, session }) {
         </select>
         <div className="flex-1" />
         {selected.size > 0 && (
+          <button
+            disabled={bulkBusy}
+            onClick={() => bulkSetStatus(Array.from(selected), "selected", `Chuyển ${selected.size} đơn đã tick sang "Đã chọn"?`)}
+            className="text-sm px-3 py-2 rounded-lg border border-[#0F766E] text-[#0F766E] flex items-center gap-1.5 hover:bg-[#CCFBF1] disabled:opacity-60">
+            {bulkBusy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Chọn {selected.size} đơn đã tick
+          </button>
+        )}
+        {selected.size > 0 && (
           <button onClick={() => setShowMailModal(true)} style={{ background: ACCENT }} className="text-sm px-3 py-2 rounded-lg text-white flex items-center gap-1.5">
             <Mail size={14} /> Gửi mail cho {selected.size} bạn đã chọn
           </button>
@@ -663,7 +698,20 @@ function RegistrationsAdmin({ isOwner, session }) {
               {v.label}: {aiCounts[k]}
             </button>
           ))}
-          <span className="text-slate-400">· Đề xuất chỉ để tham khảo, bạn vẫn bấm Chọn như bình thường.</span>
+          <span className="text-slate-400">· Đề xuất chỉ để tham khảo, bạn vẫn quyết định chọn ai.</span>
+          {pendingApprove.length > 0 && (
+            <button
+              disabled={bulkBusy}
+              onClick={() => bulkSetStatus(
+                pendingApprove.map((r) => r.code),
+                "selected",
+                `Chuyển toàn bộ ${pendingApprove.length} đơn AI đề xuất "Nên chọn" sang "Đã chọn"?\n\nMẹo: muốn bỏ bớt ai thì lọc "Nên chọn", tick từng người rồi dùng nút "Chọn N đơn đã tick" thay vì nút này.`
+              )}
+              className="ml-auto text-xs px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5 disabled:opacity-60"
+              style={{ background: "#0F766E" }}>
+              {bulkBusy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} Chọn hết {pendingApprove.length} đơn "Nên chọn"
+            </button>
+          )}
         </div>
       )}
 
@@ -954,12 +1002,21 @@ function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // Lọc theo đề xuất AI — "none" = đơn chưa được AI chấm
+  const AI_OPTIONS = [...Object.entries(AI_SUGGESTION).map(([k, v]) => ({ value: k, label: v.label })), { value: "none", label: "Chưa chấm" }];
+  const [aiSel, setAiSel] = useState(() =>
+    initialFilters?.ai ? new Set([initialFilters.ai]) : new Set(AI_OPTIONS.map((o) => o.value))
+  );
+  const aiNarrowed = aiSel.size < AI_OPTIONS.length;
+  const [sortByScore, setSortByScore] = useState(() => !!initialFilters?.ai);
+
   const channelFields = useMemo(() => (typeof campaign?.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign?.channelFields || [])).filter((f) => f.label?.trim()), [campaign]);
 
   const ALL_COLS = useMemo(() => [
     { key: "code", label: "Mã ID", get: (r) => r.code },
     { key: "status", label: "Trạng thái", get: (r) => STATUS[r.status]?.label },
     { key: "aiSuggestion", label: "Đề xuất AI", get: (r) => AI_SUGGESTION[r.aiSuggestion]?.label || "" },
+    { key: "aiScore", label: "Điểm AI", get: (r) => (r.aiScore === null || r.aiScore === undefined ? "" : Number(r.aiScore)) },
     { key: "aiReason", label: "Lý do AI", get: (r) => r.aiReason || "" },
     { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
     { key: "tiktokLink", label: "Link TikTok", get: (r) => r.tiktokLink },
@@ -992,12 +1049,16 @@ function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
     }
     if (dateFrom && (!r.createdAt || new Date(r.createdAt) < new Date(dateFrom))) return false;
     if (dateTo && (!r.createdAt || new Date(r.createdAt) > new Date(dateTo + "T23:59:59"))) return false;
+    if (aiNarrowed && !aiSel.has(r.aiSuggestion || "none")) return false;
     return true;
-  }), [rows, statusSel, mail, paid, showPaid, productSel, distinctProducts, dateFrom, dateTo]);
+  }), [rows, statusSel, mail, paid, showPaid, productSel, distinctProducts, dateFrom, dateTo, aiSel, aiNarrowed]);
 
   const doExport = () => {
     const cols = ALL_COLS.filter((c) => colSel.has(c.key));
-    const data = filtered.map((r) => {
+    const ordered = sortByScore
+      ? [...filtered].sort((a, b) => (Number(b.aiScore) || 0) - (Number(a.aiScore) || 0))
+      : filtered;
+    const data = ordered.map((r) => {
       const obj = {};
       cols.forEach((c) => { obj[c.label] = c.get(r) ?? ""; });
       return obj;
@@ -1005,7 +1066,12 @@ function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Đơn đăng ký");
-    XLSX.writeFile(wb, `${campaign?.name || "campaign"}.xlsx`);
+    // Tên file kèm bộ lọc chính để dễ phân biệt khi tải nhiều lần
+    const tags = [];
+    if (statusSel.size === 1) tags.push(STATUS[[...statusSel][0]]?.label);
+    if (aiNarrowed && aiSel.size === 1) tags.push("AI " + AI_OPTIONS.find((o) => o.value === [...aiSel][0])?.label);
+    const safe = (s) => String(s || "").replace(/[\\/:*?"<>|“”]/g, "").trim();
+    XLSX.writeFile(wb, `${safe(campaign?.name) || "campaign"}${tags.length ? " - " + tags.map(safe).join(" - ") : ""}.xlsx`);
     onClose();
   };
 
@@ -1013,6 +1079,14 @@ function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
     <ExportModalShell title="Xuất Excel theo bộ lọc" count={filtered.length} onClose={onClose} onExport={doExport} exportDisabled={colSel.size === 0 || filtered.length === 0}>
       <ExportFilterSection title="Trạng thái">
         <ChipMultiSelect options={Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))} selected={statusSel} onChange={setStatusSel} />
+      </ExportFilterSection>
+
+      <ExportFilterSection title="Đề xuất AI">
+        <ChipMultiSelect options={AI_OPTIONS} selected={aiSel} onChange={setAiSel} />
+        <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer mt-2">
+          <input type="checkbox" checked={sortByScore} onChange={(e) => setSortByScore(e.target.checked)} />
+          Sắp xếp theo điểm AI (cao → thấp)
+        </label>
       </ExportFilterSection>
 
       <div className="grid grid-cols-2 gap-3">
