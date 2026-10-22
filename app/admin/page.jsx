@@ -6,7 +6,7 @@ import {
   Lock, LogOut, Eye, EyeOff, ShieldCheck, Layers, Building2, ClipboardList,
   FileSpreadsheet, UserCog, Settings as SettingsIcon, DollarSign, X, ImagePlus,
   Mail, Send, CheckCircle2, XCircle, Loader2, Truck, Video, Heart, MessageCircle,
-  Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle,
+  Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle, Sparkles,
 } from "lucide-react";
 import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, ChannelFieldsEditor, STATUS } from "../components/ui";
 
@@ -498,9 +498,9 @@ function RegistrationsAdmin({ isOwner, session }) {
   const [selected, setSelected] = useState(() => new Set());
   const [showMailModal, setShowMailModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [filters, setFilters] = useState({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
+  const [filters, setFilters] = useState({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "", ai: "" });
   const setFilter = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
-  const clearFilters = () => setFilters({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "" });
+  const clearFilters = () => setFilters({ code: "", tiktokId: "", zaloPhone: "", followers: "", selectedProduct: "", status: "", mail: "", paid: "", ai: "" });
   const hasActiveFilters = Object.values(filters).some((v) => v);
 
   useEffect(() => {
@@ -543,8 +543,16 @@ function RegistrationsAdmin({ isOwner, session }) {
     if (filters.mail === "unsent" && r.mailSentAt) return false;
     if (filters.paid === "paid" && r.paid !== true) return false;
     if (filters.paid === "unpaid" && r.paid !== false) return false;
+    if (filters.ai === "none" && r.aiSuggestion) return false;
+    if (filters.ai && filters.ai !== "none" && r.aiSuggestion !== filters.ai) return false;
     return true;
   });
+
+  const aiCounts = useMemo(() => {
+    const c = { approve: 0, review: 0, reject: 0 };
+    rows.forEach((r) => { if (c[r.aiSuggestion] !== undefined) c[r.aiSuggestion] += 1; });
+    return c;
+  }, [rows]);
 
   const updateReg = async (code, patch) => {
     setRows((list) => list.map((r) => (r.code === code ? { ...r, ...patch } : r)));
@@ -624,13 +632,27 @@ function RegistrationsAdmin({ isOwner, session }) {
         />
       )}
 
+      {aiCounts.approve + aiCounts.review + aiCounts.reject > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-slate-500">
+          <Sparkles size={13} className="text-[#5B4CFF]" /> AI đã đề xuất:
+          {Object.entries(AI_SUGGESTION).map(([k, v]) => (
+            <button key={k} onClick={() => setFilter("ai", filters.ai === k ? "" : k)}
+              className={`px-2.5 py-1 rounded-full border ${filters.ai === k ? "border-current" : "border-transparent"}`}
+              style={{ background: v.bg, color: v.color }}>
+              {v.label}: {aiCounts[k]}
+            </button>
+          ))}
+          <span className="text-slate-400">· Đề xuất chỉ để tham khảo, bạn vẫn bấm Chọn như bình thường.</span>
+        </div>
+      )}
+
       {campaigns.length === 0 && <EmptyState text="Bạn chưa được cấp quyền xem campaign nào." />}
       {campaigns.length > 0 && rows.length === 0 && <EmptyState text="Chưa có đơn đăng ký nào cho campaign này." />}
       {rows.length > 0 && filteredRows.length === 0 && <EmptyState text="Không có đơn nào khớp với bộ lọc." />}
 
       {filteredRows.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
-          <table className="w-full text-sm min-w-[1500px]">
+          <table className="w-full text-sm min-w-[1750px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
                 <th className="p-3 w-8"><input type="checkbox" checked={filteredRows.length > 0 && selected.size === filteredRows.length} onChange={toggleSelectAll} /></th>
@@ -638,7 +660,7 @@ function RegistrationsAdmin({ isOwner, session }) {
                 {channelFields.map((f) => <th key={f.id} className="p-3">{f.label}</th>)}
                 <th className="p-3">SĐT Zalo</th>
                 <th className="p-3">Follower</th><th className="p-3">GMV 30d</th><th className="p-3">Reup</th>
-                <th className="p-3">Aff 5%</th><th className="p-3">Sản phẩm chọn</th><th className="p-3">Ngày đăng ký</th><th className="p-3">Mail</th><th className="p-3">Trạng thái</th>
+                <th className="p-3">Aff 5%</th><th className="p-3">Sản phẩm chọn</th><th className="p-3">Ngày đăng ký</th><th className="p-3">Mail</th><th className="p-3">Đề xuất AI</th><th className="p-3">Trạng thái</th>
                 {campaign?.status === "done" && campaign?.cost && <th className="p-3">Thanh toán</th>}
                 <th className="p-3 w-8"></th>
               </tr>
@@ -659,6 +681,13 @@ function RegistrationsAdmin({ isOwner, session }) {
                     <option value="">Tất cả</option>
                     <option value="sent">Đã gửi</option>
                     <option value="unsent">Chưa gửi</option>
+                  </select>
+                </th>
+                <th className="p-1.5">
+                  <select value={filters.ai} onChange={(e) => setFilter("ai", e.target.value)} className="w-full border border-[#E7E3DA] rounded px-1.5 py-1 text-xs bg-white">
+                    <option value="">Tất cả</option>
+                    {Object.entries(AI_SUGGESTION).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    <option value="none">Chưa có</option>
                   </select>
                 </th>
                 <th className="p-1.5">
@@ -702,6 +731,7 @@ function RegistrationsAdmin({ isOwner, session }) {
                       <span className="text-[11px] text-slate-300">Chưa gửi</span>
                     )}
                   </td>
+                  <td className="p-3"><AiSuggestionCell reg={r} /></td>
                   <td className="p-3">
                     <div className="flex flex-col gap-1.5">
                       <StatusPill status={r.status} />
@@ -727,6 +757,27 @@ function RegistrationsAdmin({ isOwner, session }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------- AI SUGGESTION (ghi bởi AI agent qua /api/mcp) ---------------- */
+
+const AI_SUGGESTION = {
+  approve: { label: "Nên chọn", color: "#0F766E", bg: "#CCFBF1" },
+  review: { label: "Xem lại", color: "#B45309", bg: "#FEF3C7" },
+  reject: { label: "Nên loại", color: "#B91C1C", bg: "#FEE2E2" },
+};
+
+function AiSuggestionCell({ reg }) {
+  const s = AI_SUGGESTION[reg.aiSuggestion];
+  if (!s) return <span className="text-[11px] text-slate-300">—</span>;
+  return (
+    <div className="flex flex-col gap-1 max-w-[220px]">
+      <span className="inline-flex items-center gap-1 self-start text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: s.bg, color: s.color }}>
+        <Sparkles size={11} /> {s.label}{reg.aiScore !== null && reg.aiScore !== undefined ? ` · ${reg.aiScore}` : ""}
+      </span>
+      {reg.aiReason && <span title={reg.aiReason} className="text-[11px] text-slate-500 leading-snug line-clamp-2">{reg.aiReason}</span>}
     </div>
   );
 }
@@ -887,6 +938,8 @@ function RegistrationsExportModal({ rows, campaign, initialFilters, onClose }) {
   const ALL_COLS = useMemo(() => [
     { key: "code", label: "Mã ID", get: (r) => r.code },
     { key: "status", label: "Trạng thái", get: (r) => STATUS[r.status]?.label },
+    { key: "aiSuggestion", label: "Đề xuất AI", get: (r) => AI_SUGGESTION[r.aiSuggestion]?.label || "" },
+    { key: "aiReason", label: "Lý do AI", get: (r) => r.aiReason || "" },
     { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
     { key: "tiktokLink", label: "Link TikTok", get: (r) => r.tiktokLink },
     ...channelFields.map((f) => ({ key: `extra:${f.id}`, label: f.label, get: (r) => (typeof r.extraFields === "string" ? JSON.parse(r.extraFields || "{}") : (r.extraFields || {}))[f.id] || "" })),
