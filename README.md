@@ -83,3 +83,27 @@ Trong project Vercel → **Settings → Domains** → nhập domain đã mua →
 - Ảnh GMV vẫn nhập bằng link dán vào (chưa hỗ trợ upload file ảnh trực tiếp). Báo lại nếu bạn cần thêm phần upload ảnh thật.
 - Toàn bộ dữ liệu (brand, campaign, đơn đăng ký, nhân viên) nằm trong Firestore của bạn, xem/backup trực tiếp trong Firebase Console → Firestore Database.
 - Firestore free tier cho khoảng 50.000 lượt đọc + 20.000 lượt ghi mỗi ngày — thoải mái dùng miễn phí lâu dài với quy mô tuyển UGC theo campaign.
+
+## Kết nối AI agent (Claude) để tự lọc đơn
+
+App có sẵn 1 cổng MCP tại `https://<domain-của-bạn>/api/mcp` để Claude đọc campaign, đơn đăng ký, lịch sử KOC và **ghi đề xuất lọc** (cột "Đề xuất AI" trong tab Đơn đăng ký). Claude **không** tự đổi trạng thái duyệt, không gửi mail, không xoá dữ liệu: bạn vẫn bấm Chọn như bình thường.
+
+1. Tạo 1 chuỗi bí mật ngẫu nhiên dài (ít nhất 24 ký tự, ví dụ dùng trình tạo mật khẩu), rồi vào Vercel → project → **Settings → Environment Variables** → thêm `MCP_API_KEY` = chuỗi đó → **Redeploy**.
+2. Vào claude.ai → **Customize → Connectors → + Add → Add custom connector**:
+   - Tên: `Vietree UGC`
+   - URL: `https://<domain-của-bạn>/api/mcp`
+   - Authentication: **No sign in**, thêm request header `Authorization` = `Bearer <MCP_API_KEY>`
+3. Trong cuộc trò chuyện, bật connector rồi nhắn ví dụ: *"Lọc đơn campaign CLIO Cushion tháng 11, lưu đề xuất vào app"*.
+
+Các luật Claude áp dụng (công cụ `screen_campaign`):
+
+| Mã luật | Ý nghĩa | Mức |
+|---|---|---|
+| BLACKLIST | KOC trong blacklist (collection `blacklist`) | Loại |
+| DUP_IN_CAMPAIGN | Trùng ID TikTok hoặc SĐT với đơn đăng ký trước trong cùng campaign | Loại |
+| OWING_POST | Đã được chọn + đã gửi hàng campaign trước, quá `MCP_OWING_DAYS` ngày (mặc định 30) chưa air bài | Loại |
+| SAME_BRAND_PLATFORM_MONTH | Đã được chọn campaign khác cùng brand, cùng nền tảng, cùng tháng | Loại (chỉ đang đăng ký thì Xem lại) |
+| SAME_PRODUCT_3_MONTHS | Đã nhận cùng sản phẩm (không tính phân loại) 2 tháng liền trước | Loại |
+| MISSING_INFO | Thiếu ID TikTok (campaign bắt buộc TikTok) hoặc SĐT sai | Xem lại |
+
+Ghi chú: nền tảng của campaign lấy từ trường `platform` nếu có, không thì đoán theo tên campaign (Threads, Instagram, Facebook, Shopee...) và việc có bắt buộc TikTok. Tháng của campaign là tháng tạo campaign (hoặc trường `month` dạng `YYYY-MM` nếu có). Đặt tên campaign có chữ nền tảng để luật chạy chính xác.
