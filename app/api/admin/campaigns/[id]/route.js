@@ -19,9 +19,12 @@ export async function PATCH(req, { params }) {
   }
   const data = {};
   ["name", "product", "cost", "requirements", "brief", "brandId", "status", "imageUrl", "zaloGroupLink", "trackingLink",
-    "goalCreators", "goalViews", "goalGmv", "goalOrders", "requireTiktok"].forEach((k) => {
+    "goalCreators", "goalViews", "goalGmv", "goalOrders", "requireTiktok", "zaloGroupName"].forEach((k) => {
     if (body[k] !== undefined) data[k] = body[k];
   });
+  // Hạn air bài: ngày chung (YYYY-MM-DD) và/hoặc số ngày sau khi gửi hàng
+  if (body.postDeadline !== undefined) data.postDeadline = /^\d{4}-\d{2}-\d{2}$/.test(body.postDeadline || "") ? body.postDeadline : "";
+  if (body.postDays !== undefined) data.postDays = Math.max(0, Math.min(365, parseInt(body.postDays, 10) || 0));
   if (body.sampleLinks !== undefined) data.sampleLinks = JSON.stringify(body.sampleLinks);
   if (body.productOptions !== undefined) data.productOptions = JSON.stringify(body.productOptions);
   if (body.channelFields !== undefined) data.channelFields = JSON.stringify(body.channelFields);

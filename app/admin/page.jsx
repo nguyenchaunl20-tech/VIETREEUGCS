@@ -6,8 +6,9 @@ import {
   Lock, LogOut, Eye, EyeOff, ShieldCheck, Layers, Building2, ClipboardList,
   FileSpreadsheet, UserCog, Settings as SettingsIcon, DollarSign, X, ImagePlus,
   Mail, Send, CheckCircle2, XCircle, Loader2, Truck, Video, Heart, MessageCircle,
-  Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle, Sparkles,
+  Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle, Sparkles, Bell,
 } from "lucide-react";
+import { deadlineOf, fmtVN, todayVN, daysBetween } from "../../lib/deadline";
 import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, ChannelFieldsEditor, STATUS } from "../components/ui";
 
 const ACCENT = "#5B4CFF";
@@ -233,6 +234,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
     requireTiktok: c.requireTiktok !== false,
     channelFields: typeof c.channelFields === "string" ? JSON.parse(c.channelFields || "[]") : (c.channelFields || []),
     goalCreators: c.goalCreators ?? "", goalViews: c.goalViews ?? "", goalGmv: c.goalGmv ?? "", goalOrders: c.goalOrders ?? "",
+    postDeadline: c.postDeadline || "", postDays: c.postDays ? String(c.postDays) : "", zaloGroupName: c.zaloGroupName || "",
   });
 
   const toggleOpen = (c) => {
@@ -384,6 +386,25 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                         <input type="number" min="0" value={draft.goalOrders} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { goalOrders: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#EFEBE2]">
+                    <FieldLabel><span className="flex items-center gap-1.5"><Bell size={13} /> Hạn air bài & nhắc nhở</span></FieldLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1.5">
+                      <div>
+                        <label className="text-[11px] text-slate-400">Hạn chung của campaign</label>
+                        <input type="date" value={draft.postDeadline} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { postDeadline: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">Số ngày được đăng sau khi gửi hàng</label>
+                        <input type="number" min="0" placeholder="vd: 14" value={draft.postDays} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { postDays: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">Tên nhóm Zalo (để Claude tìm khi nhắc)</label>
+                        <input type="text" placeholder="vd: CLIO x KOC Tháng 10" value={draft.zaloGroupName} disabled={!canEdit} onChange={(e) => updateDraft(c.id, { zaloGroupName: e.target.value })} className="w-full border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm disabled:bg-[#F7F7F5]" />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1.5">Hạn của mỗi KOC là ngày đến trước giữa hạn chung và (ngày gửi hàng + số ngày). Hệ thống tự gửi mail nhắc khi còn 3 ngày và khi quá hạn 1 ngày. Để trống cả hai ô đầu thì không nhắc.</p>
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#EFEBE2] flex-wrap gap-2">
@@ -1196,12 +1217,13 @@ function ResultsAdmin({ isOwner, session }) {
 
       {rangedRows.length > 0 && (
         <div className="overflow-x-auto border border-[#E7E3DA] rounded-xl bg-white">
-          <table className="w-full text-sm min-w-[1400px]">
+          <table className="w-full text-sm min-w-[1600px]">
             <thead>
               <tr className="border-b border-[#E7E3DA] text-left text-slate-400 text-xs uppercase tracking-wide">
                 <th className="p-3">TikTok</th>
                 <th className="p-3"><Truck size={12} className="inline mr-1" />Gửi hàng</th>
                 <th className="p-3">Ngày gửi</th>
+                <th className="p-3"><Bell size={12} className="inline mr-1" />Hạn air · Đã nhắc</th>
                 <th className="p-3"><Video size={12} className="inline mr-1" />Link air bài</th>
                 <th className="p-3">Ngày air</th>
                 <th className="p-3"><Eye size={12} className="inline mr-1" />View</th>
@@ -1227,6 +1249,7 @@ function ResultsAdmin({ isOwner, session }) {
                     </select>
                   </td>
                   <td className="p-2"><input type="date" value={r.shipDate || ""} onChange={(e) => updateReg(r.code, { shipDate: e.target.value })} className="border border-[#E7E3DA] rounded px-1.5 py-1 text-xs w-full" /></td>
+                  <td className="p-2"><DeadlineCell reg={r} campaign={campaign} /></td>
                   <td className="p-2" style={{ minWidth: 210 }}>
                     <div className="flex items-center gap-1">
                       <input type="text" placeholder="Dán link video..." defaultValue={r.postLink || ""}
@@ -1252,6 +1275,30 @@ function ResultsAdmin({ isOwner, session }) {
       {showExportModal && (
         <ResultsExportModal rows={rows} campaign={campaign} onClose={() => setShowExportModal(false)} />
       )}
+    </div>
+  );
+}
+
+function DeadlineCell({ reg, campaign }) {
+  const deadline = deadlineOf(reg, campaign);
+  if (!deadline) return <span className="text-[11px] text-slate-300" title="Campaign chưa cài hạn air bài, hoặc KOC chưa có ngày gửi hàng">—</span>;
+  const left = daysBetween(todayVN(), deadline);
+  const posted = !!String(reg.postLink || "").trim();
+  const tone = posted ? "text-slate-500" : left < 0 ? "text-red-600" : left <= 3 ? "text-amber-600" : "text-slate-600";
+  const marks = [
+    ["mailRemindBeforeAt", "Mail −3 ngày"], ["mailRemindOverdueAt", "Mail quá hạn"],
+    ["zaloRemindBeforeAt", "Zalo −3 ngày"], ["zaloRemindOverdueAt", "Zalo quá hạn"],
+  ].filter(([k]) => reg[k]);
+  return (
+    <div className="flex flex-col gap-1 whitespace-nowrap">
+      <span className={`text-xs font-medium ${tone}`}>
+        {fmtVN(deadline)}{!posted && (left < 0 ? ` · quá ${-left} ngày` : left === 0 ? " · hôm nay" : ` · còn ${left} ngày`)}
+      </span>
+      {marks.map(([k, label]) => (
+        <span key={k} title={`Đã gửi lúc ${new Date(reg[k]).toLocaleString("vi-VN")}`} className="inline-flex items-center gap-1 self-start text-[10px] px-1.5 py-0.5 rounded-full bg-[#F1F5F9] text-slate-500">
+          <CheckCircle2 size={10} /> {label}
+        </span>
+      ))}
     </div>
   );
 }

@@ -107,3 +107,10 @@ Các luật Claude áp dụng (công cụ `screen_campaign`):
 | MISSING_INFO | Thiếu ID TikTok (campaign bắt buộc TikTok) hoặc SĐT sai | Xem lại |
 
 Ghi chú: nền tảng của campaign lấy từ trường `platform` nếu có, không thì đoán theo tên campaign (Threads, Instagram, Facebook, Shopee...) và việc có bắt buộc TikTok. Luật "cùng tháng" và "3 tháng liền" tính theo **tháng KOC đăng ký** (giờ VN), nên campaign dùng lại qua nhiều tháng vẫn đúng. Đặt tên campaign có chữ nền tảng để luật chạy chính xác.
+
+## Nhắc KOC air bài (mail tự động + nhóm Zalo)
+
+1. Trong tab **Campaigns**, mở campaign → mục **Hạn air bài & nhắc nhở**: đặt *Hạn chung* và/hoặc *Số ngày được đăng sau khi gửi hàng*, và *Tên nhóm Zalo*. Hạn của mỗi KOC là ngày đến trước trong hai cách tính.
+2. Trong tab **Kết quả Campaign**, nhập *Ngày gửi* hàng cho từng KOC (cần cho cách tính theo số ngày). Cột **Hạn air · Đã nhắc** hiện hạn của từng người và các lần đã nhắc.
+3. Vercel → Environment Variables: thêm `CRON_SECRET` (chuỗi ngẫu nhiên ≥ 16 ký tự) → Redeploy. Mỗi sáng khoảng 8–9h, hệ thống tự gửi mail cho KOC đã được chọn, chưa có link air bài, **còn 1–3 ngày tới hạn** (1 lần) và **quá hạn 1–7 ngày** (1 lần).
+4. Nhóm Zalo: Claude dùng công cụ `get_post_reminders` để soạn tin nhắc theo từng campaign; bạn xác nhận thì Claude dán vào nhóm trên Zalo PC và đánh dấu bằng `mark_zalo_reminders_sent`.
