@@ -106,4 +106,4 @@ Các luật Claude áp dụng (công cụ `screen_campaign`):
 | SAME_PRODUCT_3_MONTHS | Đã nhận cùng sản phẩm (không tính phân loại) 2 tháng liền trước | Loại |
 | MISSING_INFO | Thiếu ID TikTok (campaign bắt buộc TikTok) hoặc SĐT sai | Xem lại |
 
-Ghi chú: nền tảng của campaign lấy từ trường `platform` nếu có, không thì đoán theo tên campaign (Threads, Instagram, Facebook, Shopee...) và việc có bắt buộc TikTok. Tháng của campaign là tháng tạo campaign (hoặc trường `month` dạng `YYYY-MM` nếu có). Đặt tên campaign có chữ nền tảng để luật chạy chính xác.
+Ghi chú: nền tảng của campaign lấy từ trường `platform` nếu có, không thì đoán theo tên campaign (Threads, Instagram, Facebook, Shopee...) và việc có bắt buộc TikTok. Luật "cùng tháng" và "3 tháng liền" tính theo **tháng KOC đăng ký** (giờ VN), nên campaign dùng lại qua nhiều tháng vẫn đúng. Đặt tên campaign có chữ nền tảng để luật chạy chính xác.
