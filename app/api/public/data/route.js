@@ -29,6 +29,7 @@ export async function GET() {
     status: c.status,
     requireTiktok: c.requireTiktok,
     channelFields: c.channelFields,
+    followPages: c.followPages,
   }));
 
   return NextResponse.json({

@@ -26,6 +26,7 @@ export async function POST(req) {
       sampleLinks: JSON.stringify(body.sampleLinks || []),
       productOptions: JSON.stringify(body.productOptions || []),
       channelFields: JSON.stringify(body.channelFields || []),
+      followPages: JSON.stringify(body.followPages || []),
       requireTiktok: body.requireTiktok !== false,
       imageUrl: body.imageUrl || "",
       zaloGroupLink: body.zaloGroupLink || "",

@@ -165,3 +165,34 @@ export function ChannelFieldsEditor({ fields, onChange }) {
     </div>
   );
 }
+
+export const FOLLOW_PLATFORMS = ["TikTok", "Instagram", "Facebook", "YouTube", "Threads", "Zalo", "Khác"];
+
+export function parseFollowPages(v) {
+  const arr = typeof v === "string" ? (() => { try { return JSON.parse(v || "[]"); } catch { return []; } })() : (v || []);
+  return arr.filter((p) => p && p.url?.trim());
+}
+
+export function FollowPagesEditor({ pages, onChange }) {
+  const add = () => onChange([...pages, { id: Math.random().toString(36).slice(2, 8), platform: "TikTok", label: "", url: "" }]);
+  const update = (id, patch) => onChange(pages.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const remove = (id) => onChange(pages.filter((p) => p.id !== id));
+  return (
+    <div className="space-y-2">
+      {pages.map((p) => (
+        <div key={p.id} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
+          <select value={p.platform || "TikTok"} onChange={(e) => update(p.id, { platform: e.target.value })}
+            className="w-28 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm bg-white">
+            {FOLLOW_PLATFORMS.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <input value={p.label || ""} onChange={(e) => update(p.id, { label: e.target.value })} placeholder="Tên trang, VD: @brand.official"
+            className="w-44 border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <input value={p.url || ""} onChange={(e) => update(p.id, { url: e.target.value })} placeholder="Link trang (https://...)"
+            className="flex-1 min-w-[160px] border border-[#E7E3DA] rounded-lg px-2 py-1.5 text-sm" />
+          <button type="button" onClick={() => remove(p.id)} className="text-slate-400 hover:text-red-500">✕</button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className="text-sm text-[#5B4CFF]">+ Thêm trang cần follow</button>
+    </div>
+  );
+}

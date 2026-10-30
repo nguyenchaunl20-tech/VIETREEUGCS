@@ -7,7 +7,7 @@ export async function POST(req) {
   const {
     campaignId, tiktokId, tiktokLink, zaloPhone, address, email,
     gmvNote, gmvNumber, pastBrands, followers, allowReup, aff5,
-    video30days, contentDesc, selectedProduct, extraFields,
+    video30days, contentDesc, selectedProduct, extraFields, followConfirmed,
   } = body;
 
   if (!campaignId || !zaloPhone?.trim() || !email?.trim()) {
@@ -28,6 +28,13 @@ export async function POST(req) {
   const missing = channelFields.find((f) => f.required && !String((extraFields || {})[f.id] || "").trim());
   if (missing) {
     return NextResponse.json({ ok: false, error: `Thiếu thông tin bắt buộc: ${missing.label}` }, { status: 400 });
+  }
+
+  let followPages = [];
+  try { followPages = typeof campaign.followPages === "string" ? JSON.parse(campaign.followPages || "[]") : (campaign.followPages || []); } catch { followPages = []; }
+  followPages = followPages.filter((p) => p && p.url?.trim());
+  if (followPages.length > 0 && followConfirmed !== true) {
+    return NextResponse.json({ ok: false, error: "Bạn cần follow các trang bắt buộc và xác nhận trước khi đăng ký." }, { status: 400 });
   }
 
   const brand = await prisma.brand.findUnique({ where: { id: campaign.brandId } });
@@ -55,6 +62,7 @@ export async function POST(req) {
       video30days: video30days || "", contentDesc: contentDesc || "",
       selectedProduct: selectedProduct || "",
       extraFields: JSON.stringify(extraFields || {}),
+      followConfirmed: followPages.length > 0 ? true : null,
       status: "pending", paid: null,
     },
   });

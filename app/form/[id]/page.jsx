@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Copy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Copy, ExternalLink } from "lucide-react";
 import Header from "../../components/Header";
-import { Field, ChoiceField, FieldLabel } from "../../components/ui";
+import { Field, ChoiceField, FieldLabel, parseFollowPages } from "../../components/ui";
 
 export default function RegistrationFormPage({ params }) {
   const [data, setData] = useState(null);
@@ -12,6 +12,7 @@ export default function RegistrationFormPage({ params }) {
     allowReup: "", aff5: "", video30days: "", contentDesc: "", selectedProduct: "",
   });
   const [extra, setExtra] = useState({});
+  const [followConfirmed, setFollowConfirmed] = useState(false);
   const [submittedCode, setSubmittedCode] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +50,8 @@ export default function RegistrationFormPage({ params }) {
   const requireTiktok = campaign.requireTiktok !== false;
   const channelFields = (typeof campaign.channelFields === "string" ? JSON.parse(campaign.channelFields || "[]") : (campaign.channelFields || [])).filter((f) => f.label?.trim());
 
+  const followPages = parseFollowPages(campaign.followPages);
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setExtraField = (id, v) => setExtra((e) => ({ ...e, [id]: v }));
   const toggleBrandHistory = (name) => setForm((f) => ({
@@ -75,12 +78,16 @@ export default function RegistrationFormPage({ params }) {
       setError("Vui lòng chọn sản phẩm bạn muốn nhận.");
       return;
     }
+    if (followPages.length > 0 && !followConfirmed) {
+      setError("Vui lòng follow các trang bắt buộc và tick xác nhận trước khi gửi đăng ký.");
+      return;
+    }
     setError("");
     setSubmitting(true);
     const res = await fetch("/api/public/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId: campaign.id, ...form, extraFields: extra }),
+      body: JSON.stringify({ campaignId: campaign.id, ...form, extraFields: extra, followConfirmed }),
     });
     const json = await res.json();
     setSubmitting(false);
@@ -121,6 +128,26 @@ export default function RegistrationFormPage({ params }) {
         <a href={`/campaign/${campaign.id}`} className="text-sm text-slate-400 hover:text-slate-600 flex items-center gap-1 mb-6"><ArrowLeft size={14} /> {campaign.name}</a>
         <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-2xl font-medium mb-1">Đăng ký UGC</h1>
         <p className="text-sm text-slate-500 mb-7">Cho campaign <b>{campaign.name}</b></p>
+
+        {followPages.length > 0 && (
+          <div className="mb-7 border border-[#E7E3DA] bg-white rounded-xl p-4">
+            <div className="text-sm font-medium mb-1">Bước 1: Follow các trang của brand</div>
+            <p className="text-xs text-slate-500 mb-3">Campaign này yêu cầu bạn follow các trang dưới đây. Bấm vào từng trang để mở và follow, sau đó tick xác nhận bên dưới.</p>
+            <div className="flex flex-col gap-2 mb-3">
+              {followPages.map((p) => (
+                <a key={p.id} href={p.url} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg bg-[#F1EFE8] hover:bg-[#EEEBFF] hover:text-[#5B4CFF] transition">
+                  <span><b>{p.platform}</b>{p.label ? ` · ${p.label}` : ""}</span>
+                  <ExternalLink size={13} />
+                </a>
+              ))}
+            </div>
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={followConfirmed} onChange={(e) => setFollowConfirmed(e.target.checked)} />
+              <span>Mình đã follow đầy đủ các trang trên <span className="text-red-500">*</span></span>
+            </label>
+          </div>
+        )}
 
         <div className="space-y-5">
           {productOptions.length > 0 && (

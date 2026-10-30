@@ -9,7 +9,7 @@ import {
   Share2, Target, BarChart3, Users, ExternalLink, AlertTriangle, Sparkles, Bell,
 } from "lucide-react";
 import { deadlineOf, fmtVN, todayVN, daysBetween } from "../../lib/deadline";
-import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, ChannelFieldsEditor, STATUS } from "../components/ui";
+import { FieldLabel, StatusPill, EmptyState, SampleLinksEditor, ProductOptionsEditor, ChannelFieldsEditor, FollowPagesEditor, parseFollowPages, STATUS } from "../components/ui";
 
 const ACCENT = "#5B4CFF";
 
@@ -232,6 +232,7 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
     sampleLinks: typeof c.sampleLinks === "string" ? JSON.parse(c.sampleLinks || "[]") : (c.sampleLinks || []),
     productOptions: typeof c.productOptions === "string" ? JSON.parse(c.productOptions || "[]") : (c.productOptions || []),
     requireTiktok: c.requireTiktok !== false,
+    followPages: typeof c.followPages === "string" ? JSON.parse(c.followPages || "[]") : (c.followPages || []),
     channelFields: typeof c.channelFields === "string" ? JSON.parse(c.channelFields || "[]") : (c.channelFields || []),
     goalCreators: c.goalCreators ?? "", goalViews: c.goalViews ?? "", goalGmv: c.goalGmv ?? "", goalOrders: c.goalOrders ?? "",
     postDeadline: c.postDeadline || "", postDays: c.postDays ? String(c.postDays) : "", zaloGroupName: c.zaloGroupName || "",
@@ -355,6 +356,19 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                       <div className="flex flex-wrap gap-1.5">
                         {(draft.channelFields || []).length === 0 && <span className="text-xs text-slate-300">Không có trường nào khác.</span>}
                         {(draft.channelFields || []).map((f) => <span key={f.id} className="text-xs px-2 py-1 rounded-full bg-[#F1EFE8] text-slate-500">{f.label}{f.required ? " *" : ""}</span>)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-[#EFEBE2]">
+                    <FieldLabel>Trang bắt buộc UGC phải follow (riêng cho campaign này)</FieldLabel>
+                    <div className="text-[11px] text-slate-400 mb-1.5">Để trống nếu campaign này không yêu cầu follow. Nếu có, form đăng ký sẽ hiện danh sách này và bắt UGC tick xác nhận đã follow mới gửi được.</div>
+                    {canEdit ? (
+                      <FollowPagesEditor pages={draft.followPages || []} onChange={(v) => updateDraft(c.id, { followPages: v })} />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {parseFollowPages(draft.followPages).length === 0 && <span className="text-xs text-slate-300">Không yêu cầu follow trang nào.</span>}
+                        {parseFollowPages(draft.followPages).map((p) => <span key={p.id} className="text-xs px-2 py-1 rounded-full bg-[#F1EFE8] text-slate-500">{p.platform}: {p.label || p.url}</span>)}
                       </div>
                     )}
                   </div>

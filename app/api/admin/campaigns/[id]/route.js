@@ -28,6 +28,7 @@ export async function PATCH(req, { params }) {
   if (body.sampleLinks !== undefined) data.sampleLinks = JSON.stringify(body.sampleLinks);
   if (body.productOptions !== undefined) data.productOptions = JSON.stringify(body.productOptions);
   if (body.channelFields !== undefined) data.channelFields = JSON.stringify(body.channelFields);
+  if (body.followPages !== undefined) data.followPages = JSON.stringify(body.followPages);
   const campaign = await prisma.campaign.update({ where: { id: params.id }, data });
   return NextResponse.json({ campaign });
 }
