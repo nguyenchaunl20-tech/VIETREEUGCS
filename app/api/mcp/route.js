@@ -22,6 +22,7 @@ const INSTRUCTIONS = [
   "Đơn có luật mức block thì đề xuất reject. Không bao giờ đề xuất approve cho KOC trong blacklist hoặc đang nợ bài quá hạn.",
   "Agent không tự đổi trạng thái duyệt; người dùng bấm Chọn trong trang admin.",
   "Chỉ thêm/gỡ blacklist khi người dùng yêu cầu rõ ràng.",
+  "Địa chỉ/email để gửi hàng lấy bằng get_shipping_contacts; chỉ dùng cho file gửi hàng, không đưa vào báo cáo hay tin nhắn nhóm.",
 ].join(" ");
 
 const TOOL_MAP = new Map(TOOLS.map((t) => [t.name, t]));
