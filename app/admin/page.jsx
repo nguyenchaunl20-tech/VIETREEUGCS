@@ -1137,6 +1137,12 @@ function ResultsAdmin({ isOwner, session }) {
           const oldVal = existing[key] ?? "";
           if (String(newVal) !== String(oldVal)) changes.push({ key, label: header, oldVal, newVal });
         });
+        // Đơn đã gửi hàng thật thì chắc chắn đã trúng tuyển: tự đánh dấu "Được chọn"
+        // để khỏi phải bấm Chọn từng người (chỉ khi file có Trạng thái gửi hàng = Đã gửi / Đã nhận hàng).
+        const shipVal = row["Trạng thái gửi hàng"];
+        if ((shipVal === "Đã gửi" || shipVal === "Đã nhận hàng") && existing.status !== "selected") {
+          changes.unshift({ key: "status", label: "Chọn (đã gửi hàng)", oldVal: existing.status || "", newVal: "selected" });
+        }
         return { label: `${existing.tiktokId || code} (${code})`, code, found: true, changes };
       }).filter(Boolean);
       setImportPreview(diffs);
