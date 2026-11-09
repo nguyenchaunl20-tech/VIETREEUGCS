@@ -1107,6 +1107,7 @@ function ResultsAdmin({ isOwner, session }) {
   const RESULT_FIELD_DEFS = [
     { header: "Trạng thái gửi hàng", key: "shipStatus", parse: (v) => (v === "Đã nhận hàng" ? "delivered" : v === "Đã gửi" ? "shipped" : "") },
     { header: "Ngày gửi", key: "shipDate" },
+    { header: "Mã vận đơn", key: "trackingCode" },
     { header: "Link air bài", key: "postLink" },
     { header: "Ngày air", key: "postDate" },
     { header: "View", key: "views" },
@@ -1360,6 +1361,7 @@ function ResultsExportModal({ rows, campaign, onClose }) {
     { key: "tiktokId", label: "ID TikTok", get: (r) => r.tiktokId },
     { key: "shipStatus", label: "Trạng thái gửi hàng", get: (r) => (r.shipStatus === "delivered" ? "Đã nhận hàng" : r.shipStatus === "shipped" ? "Đã gửi" : "Chưa gửi") },
     { key: "shipDate", label: "Ngày gửi", get: (r) => r.shipDate || "" },
+    { key: "trackingCode", label: "Mã vận đơn", get: (r) => r.trackingCode || "" },
     { key: "postLink", label: "Link air bài", get: (r) => r.postLink || "" },
     { key: "postDate", label: "Ngày air", get: (r) => r.postDate || "" },
     { key: "views", label: "View", get: (r) => r.views || 0 },
