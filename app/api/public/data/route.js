@@ -32,7 +32,7 @@ export async function GET() {
     followPages: c.followPages,
   }));
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     brands,
     campaigns: safeCampaigns,
     refLinks,
@@ -41,4 +41,9 @@ export async function GET() {
       logoDataUrl: settings?.logoDataUrl || null,
     },
   });
+  // Cho CDN của Vercel giữ bản sao dùng chung cho mọi khách trong 60 giây, nên
+  // 1.000 lượt mở trang trong 1 phút chỉ tốn 1 lần đọc Firestore thay vì 1.000 lần.
+  // Campaign mới / sửa đổi vẫn hiện ra cho khách, chậm tối đa khoảng 1 phút.
+  res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=60");
+  return res;
 }

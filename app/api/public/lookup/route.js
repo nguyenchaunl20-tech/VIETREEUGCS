@@ -8,10 +8,15 @@ export async function GET(req) {
   const code = (searchParams.get("code") || "").trim();
   if (!code) return NextResponse.json({ found: false });
 
-  const reg = await prisma.registration.findFirst({
-    where: { code: { equals: code, mode: "insensitive" } },
-    include: { campaign: true },
-  });
+  // Trước đây dùng mode "insensitive" => phải tải TOÀN BỘ đơn đăng ký về để so sánh,
+  // mỗi lần tra cứu tốn cả nghìn lượt đọc Firestore. Mã do hệ thống sinh luôn viết HOA,
+  // nên chỉ cần thử vài cách viết (HOA / như khách gõ / thường), mỗi lần chỉ đọc 1 đơn.
+  const variants = [...new Set([code.toUpperCase(), code, code.toLowerCase()])];
+  let reg = null;
+  for (const v of variants) {
+    reg = await prisma.registration.findFirst({ where: { code: v }, include: { campaign: true } });
+    if (reg) break;
+  }
 
   if (!reg) return NextResponse.json({ found: false });
 
