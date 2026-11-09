@@ -50,6 +50,14 @@ export default function LookupPage() {
                 {result.paid == null && <span className="text-slate-400">Chưa cập nhật</span>}
               </div>
             )}
+            {result.status === "selected" && result.trackingCode && (
+              <div className="pt-3 border-t border-[#EFEBE2] space-y-1.5 text-sm">
+                <div className="text-xs tracking-widest uppercase text-slate-400">Đơn hàng gửi cho bạn</div>
+                <div className="text-slate-500">Trạng thái: <span className="text-[#1C1B1F] font-medium">{result.shipStatus === "delivered" ? "Đã nhận hàng" : "Đã gửi"}{result.shipDate ? ` · ${result.shipDate.split("-").reverse().join("/")}` : ""}</span></div>
+                <div className="text-slate-500">Mã vận đơn J&T: <span className="font-mono text-[#1C1B1F]">{result.trackingCode}</span></div>
+                <a href={`https://jtexpress.vn/vi/tracking?type=track&billcode=${encodeURIComponent(result.trackingCode)}`} target="_blank" rel="noreferrer" className="inline-block text-[#5B4CFF] underline">Xem hành trình trên J&T</a>
+              </div>
+            )}
             {result.status === "selected" && (result.zaloGroupLink || result.trackingLink) && (
               <div className="pt-3 border-t border-[#EFEBE2] space-y-2">
                 <div className="text-xs tracking-widest uppercase text-slate-400">Bạn đã được chọn — thông tin dành cho bạn</div>
