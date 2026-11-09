@@ -13,7 +13,7 @@ function publicView(reg) {
     campaignName: reg.campaign?.name || "",
     paid: showPaid ? reg.paid : undefined,
     zaloGroupLink: selected ? reg.campaign?.zaloGroupLink || "" : undefined,
-    trackingLink: selected ? reg.campaign?.trackingLink || "" : undefined,
+    brief: selected ? reg.campaign?.brief || "" : undefined,
     // Mã vận đơn J&T của riêng UGC này (chỉ hiện khi đã được chọn)
     trackingCode: selected ? reg.trackingCode || "" : undefined,
     shipStatus: selected ? reg.shipStatus || "" : undefined,

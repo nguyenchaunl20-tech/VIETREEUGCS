@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, DollarSign, CheckCircle2, Clock } from "lucide-react";
 import Header from "../components/Header";
-import { StatusPill } from "../components/ui";
+import { StatusPill, Linkify } from "../components/ui";
 
 export default function LookupPage() {
   const [settings, setSettings] = useState({ companyName: "", logoDataUrl: null });
@@ -81,14 +81,17 @@ export default function LookupPage() {
                 <a href={`https://jtexpress.vn/vi/tracking?type=track&billcode=${encodeURIComponent(result.trackingCode)}`} target="_blank" rel="noreferrer" className="inline-block text-[#5B4CFF] underline">Xem hành trình trên J&T</a>
               </div>
             )}
-            {result.status === "selected" && (result.zaloGroupLink || result.trackingLink) && (
+            {result.status === "selected" && (result.zaloGroupLink || result.brief) && (
               <div className="pt-3 border-t border-[#EFEBE2] space-y-2">
                 <div className="text-xs tracking-widest uppercase text-slate-400">Bạn đã được chọn — thông tin dành cho bạn</div>
                 {result.zaloGroupLink && (
                   <a href={result.zaloGroupLink} target="_blank" rel="noreferrer" className="block text-sm text-[#5B4CFF] underline">Link nhóm Zalo campaign</a>
                 )}
-                {result.trackingLink && (
-                  <a href={result.trackingLink} target="_blank" rel="noreferrer" className="block text-sm text-[#5B4CFF] underline">Link theo dõi đơn hàng</a>
+                {result.brief && (
+                  <div className="text-sm">
+                    <div className="text-slate-500 mb-1">Brief campaign:</div>
+                    <div className="whitespace-pre-line text-[#1C1B1F]"><Linkify text={result.brief} /></div>
+                  </div>
                 )}
               </div>
             )}
