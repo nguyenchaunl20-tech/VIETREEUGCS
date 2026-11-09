@@ -40,7 +40,7 @@ export default function LookupPage() {
         <div className="flex flex-wrap gap-2 mb-6">
           {mode === "tiktok" ? (
             <>
-              <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok ID, vd tiee_999"
+              <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok ID của bạn"
                 onKeyDown={(e) => e.key === "Enter" && search()}
                 className="flex-1 min-w-[160px] border border-[#E7E3DA] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white" />
               <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="4 số cuối SĐT" inputMode="numeric"
