@@ -6,7 +6,10 @@ import { StatusPill } from "../components/ui";
 
 export default function LookupPage() {
   const [settings, setSettings] = useState({ companyName: "", logoDataUrl: null });
+  const [mode, setMode] = useState("tiktok");
   const [code, setCode] = useState("");
+  const [tiktok, setTiktok] = useState("");
+  const [pin, setPin] = useState("");
   const [result, setResult] = useState(undefined);
 
   useEffect(() => {
@@ -14,9 +17,12 @@ export default function LookupPage() {
   }, []);
 
   const search = async () => {
-    const res = await fetch(`/api/public/lookup?code=${encodeURIComponent(code.trim())}`);
+    const qs = mode === "tiktok"
+      ? `tiktok=${encodeURIComponent(tiktok.trim())}&pin=${encodeURIComponent(pin.trim())}`
+      : `code=${encodeURIComponent(code.trim())}`;
+    const res = await fetch(`/api/public/lookup?${qs}`);
     const json = await res.json();
-    setResult(json.found ? json : null);
+    setResult(json.found ? (json.results || [json]) : null);
   };
 
   return (
@@ -24,18 +30,35 @@ export default function LookupPage() {
       <Header companyName={settings.companyName} logoDataUrl={settings.logoDataUrl} />
       <div className="max-w-lg mx-auto px-4 sm:px-6 pt-10 pb-16">
         <h1 style={{ fontFamily: "var(--font-serif), Georgia, serif" }} className="text-2xl font-medium mb-2">Tra cứu đơn đăng ký</h1>
-        <p className="text-sm text-slate-500 mb-6">Nhập mã ID bạn nhận được sau khi đăng ký.</p>
-        <div className="flex gap-2 mb-6">
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: 091234 0726"
-            onKeyDown={(e) => e.key === "Enter" && search()}
-            className="flex-1 border border-[#E7E3DA] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white font-mono tracking-wide" />
-          <button onClick={search} style={{ background: "#5B4CFF" }} className="text-white px-5 rounded-lg flex items-center gap-1.5"><Search size={15} /> Tra cứu</button>
+        <p className="text-sm text-slate-500 mb-4">Tra bằng TikTok ID + 4 số cuối SĐT đã đăng ký, hoặc bằng mã đăng ký.</p>
+        <div className="flex gap-2 mb-4 text-sm">
+          {[["tiktok", "TikTok ID + PIN"], ["code", "Mã đăng ký"]].map(([k, l]) => (
+            <button key={k} onClick={() => { setMode(k); setResult(undefined); }}
+              className={`px-3 py-1.5 rounded-full border ${mode === k ? "bg-[#5B4CFF] text-white border-[#5B4CFF]" : "border-[#E7E3DA] text-slate-500 bg-white"}`}>{l}</button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {mode === "tiktok" ? (
+            <>
+              <input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="TikTok ID, vd tiee_999"
+                onKeyDown={(e) => e.key === "Enter" && search()}
+                className="flex-1 min-w-[160px] border border-[#E7E3DA] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white" />
+              <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="4 số cuối SĐT" inputMode="numeric"
+                onKeyDown={(e) => e.key === "Enter" && search()}
+                className="w-32 border border-[#E7E3DA] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white font-mono tracking-widest" />
+            </>
+          ) : (
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: 091234 0726"
+              onKeyDown={(e) => e.key === "Enter" && search()}
+              className="flex-1 border border-[#E7E3DA] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#5B4CFF] bg-white font-mono tracking-wide" />
+          )}
+          <button onClick={search} style={{ background: "#5B4CFF" }} className="text-white px-5 py-2.5 rounded-lg flex items-center gap-1.5"><Search size={15} /> Tra cứu</button>
         </div>
 
-        {result === null && <div className="text-sm bg-[#FEF2F2] text-red-500 px-4 py-3 rounded-lg">Không tìm thấy đơn với mã này. Kiểm tra lại mã ID nhé.</div>}
+        {result === null && <div className="text-sm bg-[#FEF2F2] text-red-500 px-4 py-3 rounded-lg">{mode === "tiktok" ? "Không tìm thấy đơn đã được chọn với TikTok ID và 4 số cuối SĐT này. Kiểm tra lại nhé." : "Không tìm thấy đơn với mã này. Kiểm tra lại mã ID nhé."}</div>}
 
-        {result && (
-          <div className="bg-white border border-[#E7E3DA] rounded-xl p-5 space-y-4">
+        {result && result.map((result) => (
+          <div key={result.code} className="bg-white border border-[#E7E3DA] rounded-xl p-5 space-y-4 mb-4">
             <div className="flex items-center justify-between">
               <span className="font-mono font-semibold tracking-wide">{result.code}</span>
               <StatusPill status={result.status} />
@@ -70,7 +93,7 @@ export default function LookupPage() {
               </div>
             )}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
