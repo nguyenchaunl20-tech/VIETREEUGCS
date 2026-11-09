@@ -341,7 +341,6 @@ function CampaignsAdmin({ isOwner, canManageCampaigns }) {
                   <MiniField label="Brief (có thể dán kèm link Google Drive để xem chi tiết, nhớ để chế độ chia sẻ 'Bất kỳ ai có link đều xem được')" value={draft.brief} onChange={(v) => updateDraft(c.id, { brief: v })} textarea disabled={!canEdit} />
                   <CampaignImageUpload value={draft.imageUrl} onChange={(v) => updateDraft(c.id, { imageUrl: v })} disabled={!canEdit} />
                   <MiniField label="Link nhóm Zalo (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.zaloGroupLink} onChange={(v) => updateDraft(c.id, { zaloGroupLink: v })} disabled={!canEdit} />
-                  <MiniField label="Link theo dõi đơn hàng (chỉ hiện cho UGC đã được chọn khi họ tra cứu đơn)" value={draft.trackingLink} onChange={(v) => updateDraft(c.id, { trackingLink: v })} disabled={!canEdit} />
 
                   <div className="pt-2 border-t border-[#EFEBE2]">
                     <FieldLabel>Thông tin kênh cần thu thập khi đăng ký</FieldLabel>
